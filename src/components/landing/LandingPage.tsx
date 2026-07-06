@@ -340,25 +340,16 @@ function HeroPreview() {
   );
 }
 
-const logos = ["Novara", "Kelso&Co", "Meridian", "Northwind", "Halden", "Aurelia"];
-
-function Logos() {
+function TrustStrip() {
   return (
     <section className="border-y border-border/60 bg-muted/30 py-10">
-      <div className="mx-auto max-w-7xl px-6">
-        <p className="text-center text-xs uppercase tracking-widest text-muted-foreground">
-          Trusted by HR & Compliance teams across the EU
+      <div className="mx-auto max-w-7xl px-6 text-center">
+        <p className="text-xs uppercase tracking-widest text-muted-foreground">
+          Designed for HR & Compliance teams preparing for the EU Pay Transparency Directive
         </p>
-        <div className="mt-6 grid grid-cols-2 items-center gap-8 opacity-70 sm:grid-cols-3 md:grid-cols-6">
-          {logos.map((l) => (
-            <div
-              key={l}
-              className="text-center font-display text-lg font-semibold tracking-tight text-muted-foreground transition-colors hover:text-foreground"
-            >
-              {l}
-            </div>
-          ))}
-        </div>
+        <p className="mt-3 text-xs text-muted-foreground/70">
+          Portfolio concept — partner logos coming soon
+        </p>
       </div>
     </section>
   );
@@ -504,37 +495,7 @@ const tiers = [
       "PDF export",
     ],
     cta: "Start free trial",
-    highlight: false,
-  },
-  {
-    name: "Growth",
-    price: "€449",
-    period: "/ month",
-    tagline: "For teams running pay transparency across the EU.",
-    features: [
-      "Up to 2,500 employees",
-      "Unlimited country reports",
-      "Collaboration & approvals",
-      "Audit trail & versioning",
-      "Priority support",
-    ],
-    cta: "Start free trial",
     highlight: true,
-  },
-  {
-    name: "Enterprise",
-    price: "Custom",
-    period: "",
-    tagline: "For groups with complex org structures and SSO.",
-    features: [
-      "Unlimited employees",
-      "SSO, SCIM, custom roles",
-      "Dedicated success manager",
-      "Custom data residency",
-      "SLA & security review",
-    ],
-    cta: "Talk to sales",
-    highlight: false,
   },
 ];
 
@@ -547,7 +508,7 @@ function Pricing() {
           title="Priced for the size of your workforce."
           subtitle="Every plan includes the full AI copilot. Cancel any time during your trial."
         />
-        <div className="mt-14 grid gap-6 lg:grid-cols-3">
+        <div className="mx-auto mt-14 grid max-w-md gap-6">
           {tiers.map((t, i) => (
             <motion.div
               key={t.name}
@@ -800,7 +761,7 @@ export default function LandingPage() {
       <Nav />
       <main>
         <Hero />
-        <Logos />
+        <TrustStrip />
         <HowItWorks />
         <Benefits />
         <Pricing />
