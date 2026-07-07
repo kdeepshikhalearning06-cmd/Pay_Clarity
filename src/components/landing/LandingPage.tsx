@@ -527,77 +527,86 @@ function Benefits() {
   );
 }
 
-const tiers = [
-  {
-    name: "Starter",
-    price: "€149",
-    period: "/ month",
-    tagline: "For a single HR lead getting compliant fast.",
-    features: [
-      "Up to 250 employees",
-      "1 country report",
-      "AI copilot & explanations",
-      "PDF export",
-    ],
-    cta: "Start free trial",
-    highlight: true,
-  },
-];
-
-function Pricing() {
+function TryPayClarity() {
+  const navigate = useNavigate();
   return (
-    <section id="pricing" className="py-24">
-      <div className="mx-auto max-w-7xl px-6">
+    <section id="try" className="py-24">
+      <div className="mx-auto max-w-6xl px-6">
         <SectionHeader
-          eyebrow="Pricing"
-          title="Priced for the size of your workforce."
-          subtitle="Every plan includes the full AI copilot. Cancel any time during your trial."
+          eyebrow="Try PayClarity"
+          title="Two ways to experience the copilot."
+          subtitle="Kick the tires with a full guided workspace, or jump straight into a live demo — no signup required."
         />
-        <div className="mx-auto mt-14 grid max-w-md gap-6">
-          {tiers.map((t, i) => (
-            <motion.div
-              key={t.name}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-50px" }}
-              transition={{ duration: 0.5, delay: i * 0.08 }}
-              className={cn(
-                "relative flex flex-col rounded-2xl border p-8 transition-all",
-                t.highlight
-                  ? "border-teal/50 bg-card shadow-[var(--shadow-elegant)]"
-                  : "border-border/60 bg-card shadow-[var(--shadow-card)] hover:-translate-y-1",
-              )}
-            >
-              {t.highlight && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-[image:var(--gradient-teal)] px-3 py-1 text-xs font-medium text-teal-foreground shadow-[var(--shadow-glow)]">
-                  Most popular
-                </div>
-              )}
-              <div className="font-display text-lg font-semibold">{t.name}</div>
-              <p className="mt-1 text-sm text-muted-foreground">{t.tagline}</p>
-              <div className="mt-6 flex items-baseline gap-1">
-                <span className="font-display text-4xl font-semibold">
-                  {t.price}
-                </span>
-                <span className="text-sm text-muted-foreground">{t.period}</span>
-              </div>
-              <ul className="mt-6 flex-1 space-y-3 text-sm">
-                {t.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2">
-                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-teal" />
-                    <span>{f}</span>
-                  </li>
-                ))}
+        <div className="mx-auto mt-14 grid gap-6 md:grid-cols-2">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-40px" }}
+            transition={{ duration: 0.5 }}
+            className="group relative flex flex-col overflow-hidden rounded-2xl border border-teal/40 bg-card p-8 shadow-[var(--shadow-elegant)]"
+          >
+            <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-teal/20 blur-3xl transition-opacity group-hover:opacity-80" />
+            <div className="relative">
+              <Badge variant="secondary" className="w-fit rounded-full border border-teal/30 bg-teal/10 text-teal">
+                Recommended
+              </Badge>
+              <h3 className="mt-4 font-display text-2xl font-semibold">
+                Start your 14-day free trial
+              </h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Create your workspace, connect your own data, and prepare a
+                real report with your team. No card required.
+              </p>
+              <ul className="mt-6 space-y-2 text-sm text-muted-foreground">
+                <li>• Your own private workspace</li>
+                <li>• Invite HR, Legal, and Finance</li>
+                <li>• Full AI copilot & audit trail</li>
               </ul>
               <Button
-                className="mt-8"
-                variant={t.highlight ? "hero" : "outline"}
-                asChild
+                size="lg"
+                variant="hero"
+                className="mt-8 w-full"
+                onClick={() => navigate({ to: "/signup" })}
               >
-                <a href="#cta">{t.cta}</a>
+                Start 14-Day Free Trial <ArrowRight className="ml-1.5 h-4 w-4" />
               </Button>
-            </motion.div>
-          ))}
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-40px" }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="group relative flex flex-col rounded-2xl border border-border/60 bg-card p-8 shadow-[var(--shadow-card)] transition-all hover:-translate-y-1 hover:border-primary/30 hover:shadow-[var(--shadow-elegant)]"
+          >
+            <Badge variant="secondary" className="w-fit rounded-full">
+              No signup
+            </Badge>
+            <h3 className="mt-4 font-display text-2xl font-semibold">
+              Explore with demo data
+            </h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Experience the complete PayClarity workflow using a realistic
+              demo company and sample salary dataset.
+            </p>
+            <ul className="mt-6 space-y-2 text-sm text-muted-foreground">
+              <li>• Instant access — no email needed</li>
+              <li>• Sample dataset of 1,428 employees</li>
+              <li>• Explore every screen at your own pace</li>
+            </ul>
+            <Button
+              size="lg"
+              variant="outline"
+              className="mt-8 w-full"
+              onClick={() => navigate({ to: "/app" })}
+            >
+              <PlayCircle className="mr-1.5 h-4 w-4" /> Explore with Demo Data
+            </Button>
+            <p className="mt-3 text-center text-xs text-muted-foreground">
+              No signup required.
+            </p>
+          </motion.div>
         </div>
       </div>
     </section>
