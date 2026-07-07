@@ -20,7 +20,14 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-const navGroups = [
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  exact?: boolean;
+};
+
+const navGroups: { label: string; items: NavItem[] }[] = [
   {
     label: "Workspace",
     items: [
@@ -45,7 +52,7 @@ const navGroups = [
       { to: "/app/audit", label: "Audit trail", icon: History },
     ],
   },
-] as const;
+];
 
 export function AppShell() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
