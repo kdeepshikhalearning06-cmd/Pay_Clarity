@@ -17,6 +17,7 @@ import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppDatasetRouteImport } from './routes/app.dataset'
+import { Route as AppSplatRouteImport } from './routes/app.$'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -58,6 +59,11 @@ const AppDatasetRoute = AppDatasetRouteImport.update({
   path: '/dataset',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSplatRoute = AppSplatRouteImport.update({
+  id: '/$',
+  path: '/$',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
+  '/app/$': typeof AppSplatRoute
   '/app/dataset': typeof AppDatasetRoute
   '/app/': typeof AppIndexRoute
 }
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
+  '/app/$': typeof AppSplatRoute
   '/app/dataset': typeof AppDatasetRoute
   '/app': typeof AppIndexRoute
 }
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
+  '/app/$': typeof AppSplatRoute
   '/app/dataset': typeof AppDatasetRoute
   '/app/': typeof AppIndexRoute
 }
@@ -98,6 +107,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/signup'
+    | '/app/$'
     | '/app/dataset'
     | '/app/'
   fileRoutesByTo: FileRoutesByTo
@@ -107,6 +117,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/signup'
+    | '/app/$'
     | '/app/dataset'
     | '/app'
   id:
@@ -117,6 +128,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/signup'
+    | '/app/$'
     | '/app/dataset'
     | '/app/'
   fileRoutesById: FileRoutesById
@@ -188,15 +200,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDatasetRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/$': {
+      id: '/app/$'
+      path: '/$'
+      fullPath: '/app/$'
+      preLoaderRoute: typeof AppSplatRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
+  AppSplatRoute: typeof AppSplatRoute
   AppDatasetRoute: typeof AppDatasetRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppSplatRoute: AppSplatRoute,
   AppDatasetRoute: AppDatasetRoute,
   AppIndexRoute: AppIndexRoute,
 }
