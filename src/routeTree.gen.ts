@@ -15,14 +15,11 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ComingSoonRouteImport } from './routes/coming-soon'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
 import { Route as AppReportsRouteImport } from './routes/app.reports'
 import { Route as AppEmployeesRouteImport } from './routes/app.employees'
-import { Route as AppDatasetRouteImport } from './routes/app.dataset'
 import { Route as AppCopilotRouteImport } from './routes/app.copilot'
 import { Route as AppAuditRouteImport } from './routes/app.audit'
-import { Route as AppSplatRouteImport } from './routes/app.$'
 import { Route as AppReportsSetupRouteImport } from './routes/app.reports.setup'
 
 const SignupRoute = SignupRouteImport.update({
@@ -55,11 +52,6 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppIndexRoute = AppIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -75,11 +67,6 @@ const AppEmployeesRoute = AppEmployeesRouteImport.update({
   path: '/employees',
   getParentRoute: () => AppRoute,
 } as any)
-const AppDatasetRoute = AppDatasetRouteImport.update({
-  id: '/dataset',
-  path: '/dataset',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppCopilotRoute = AppCopilotRouteImport.update({
   id: '/copilot',
   path: '/copilot',
@@ -88,11 +75,6 @@ const AppCopilotRoute = AppCopilotRouteImport.update({
 const AppAuditRoute = AppAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSplatRoute = AppSplatRouteImport.update({
-  id: '/$',
-  path: '/$',
   getParentRoute: () => AppRoute,
 } as any)
 const AppReportsSetupRoute = AppReportsSetupRouteImport.update({
@@ -108,30 +90,25 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
-  '/app/$': typeof AppSplatRoute
   '/app/audit': typeof AppAuditRoute
   '/app/copilot': typeof AppCopilotRoute
-  '/app/dataset': typeof AppDatasetRoute
   '/app/employees': typeof AppEmployeesRoute
   '/app/reports': typeof AppReportsRouteWithChildren
   '/app/settings': typeof AppSettingsRoute
-  '/app/': typeof AppIndexRoute
   '/app/reports/setup': typeof AppReportsSetupRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/app': typeof AppRouteWithChildren
   '/coming-soon': typeof ComingSoonRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
-  '/app/$': typeof AppSplatRoute
   '/app/audit': typeof AppAuditRoute
   '/app/copilot': typeof AppCopilotRoute
-  '/app/dataset': typeof AppDatasetRoute
   '/app/employees': typeof AppEmployeesRoute
   '/app/reports': typeof AppReportsRouteWithChildren
   '/app/settings': typeof AppSettingsRoute
-  '/app': typeof AppIndexRoute
   '/app/reports/setup': typeof AppReportsSetupRoute
 }
 export interface FileRoutesById {
@@ -142,14 +119,11 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
-  '/app/$': typeof AppSplatRoute
   '/app/audit': typeof AppAuditRoute
   '/app/copilot': typeof AppCopilotRoute
-  '/app/dataset': typeof AppDatasetRoute
   '/app/employees': typeof AppEmployeesRoute
   '/app/reports': typeof AppReportsRouteWithChildren
   '/app/settings': typeof AppSettingsRoute
-  '/app/': typeof AppIndexRoute
   '/app/reports/setup': typeof AppReportsSetupRoute
 }
 export interface FileRouteTypes {
@@ -161,30 +135,25 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/signup'
-    | '/app/$'
     | '/app/audit'
     | '/app/copilot'
-    | '/app/dataset'
     | '/app/employees'
     | '/app/reports'
     | '/app/settings'
-    | '/app/'
     | '/app/reports/setup'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/app'
     | '/coming-soon'
     | '/login'
     | '/onboarding'
     | '/signup'
-    | '/app/$'
     | '/app/audit'
     | '/app/copilot'
-    | '/app/dataset'
     | '/app/employees'
     | '/app/reports'
     | '/app/settings'
-    | '/app'
     | '/app/reports/setup'
   id:
     | '__root__'
@@ -194,14 +163,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/onboarding'
     | '/signup'
-    | '/app/$'
     | '/app/audit'
     | '/app/copilot'
-    | '/app/dataset'
     | '/app/employees'
     | '/app/reports'
     | '/app/settings'
-    | '/app/'
     | '/app/reports/setup'
   fileRoutesById: FileRoutesById
 }
@@ -258,13 +224,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/app/': {
-      id: '/app/'
-      path: '/'
-      fullPath: '/app/'
-      preLoaderRoute: typeof AppIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/app/settings': {
       id: '/app/settings'
       path: '/settings'
@@ -286,13 +245,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppEmployeesRouteImport
       parentRoute: typeof AppRoute
     }
-    '/app/dataset': {
-      id: '/app/dataset'
-      path: '/dataset'
-      fullPath: '/app/dataset'
-      preLoaderRoute: typeof AppDatasetRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/app/copilot': {
       id: '/app/copilot'
       path: '/copilot'
@@ -305,13 +257,6 @@ declare module '@tanstack/react-router' {
       path: '/audit'
       fullPath: '/app/audit'
       preLoaderRoute: typeof AppAuditRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/app/$': {
-      id: '/app/$'
-      path: '/$'
-      fullPath: '/app/$'
-      preLoaderRoute: typeof AppSplatRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/reports/setup': {
@@ -337,25 +282,19 @@ const AppReportsRouteWithChildren = AppReportsRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
-  AppSplatRoute: typeof AppSplatRoute
   AppAuditRoute: typeof AppAuditRoute
   AppCopilotRoute: typeof AppCopilotRoute
-  AppDatasetRoute: typeof AppDatasetRoute
   AppEmployeesRoute: typeof AppEmployeesRoute
   AppReportsRoute: typeof AppReportsRouteWithChildren
   AppSettingsRoute: typeof AppSettingsRoute
-  AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
-  AppSplatRoute: AppSplatRoute,
   AppAuditRoute: AppAuditRoute,
   AppCopilotRoute: AppCopilotRoute,
-  AppDatasetRoute: AppDatasetRoute,
   AppEmployeesRoute: AppEmployeesRoute,
   AppReportsRoute: AppReportsRouteWithChildren,
   AppSettingsRoute: AppSettingsRoute,
-  AppIndexRoute: AppIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
