@@ -2,13 +2,9 @@ import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import {
   LayoutDashboard,
-  Database,
+  FileText,
   Users,
-  Workflow,
-  LineChart,
   Bot,
-  ShieldCheck,
-  FileCheck2,
   History,
   Settings,
   Sparkles,
@@ -32,24 +28,10 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     label: "Workspace",
     items: [
       { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
-      { to: "/app/dataset", label: "Salary dataset", icon: Database },
+      { to: "/app/reports", label: "Reports", icon: FileText },
       { to: "/app/employees", label: "Employees", icon: Users },
-    ],
-  },
-  {
-    label: "Analysis",
-    items: [
-      { to: "/app/job-grouping", label: "AI job grouping", icon: Workflow },
-      { to: "/app/pay-gap", label: "Pay gap analysis", icon: LineChart },
-      { to: "/app/explanations", label: "AI explanations", icon: Bot },
-    ],
-  },
-  {
-    label: "Compliance",
-    items: [
-      { to: "/app/compliance", label: "Readiness score", icon: ShieldCheck },
-      { to: "/app/reports", label: "Reports", icon: FileCheck2 },
       { to: "/app/audit", label: "Audit trail", icon: History },
+      { to: "/app/copilot", label: "AI Copilot", icon: Bot },
     ],
   },
 ];
@@ -170,14 +152,11 @@ export function AppShell() {
 
 function buildCrumbs(pathname: string) {
   const map: Record<string, string> = {
-    "/app/dataset": "Salary dataset",
-    "/app/employees": "Employees",
-    "/app/job-grouping": "AI job grouping",
-    "/app/pay-gap": "Pay gap analysis",
-    "/app/explanations": "AI explanations",
-    "/app/compliance": "Readiness score",
     "/app/reports": "Reports",
+    "/app/reports/setup": "New report",
+    "/app/employees": "Employees",
     "/app/audit": "Audit trail",
+    "/app/copilot": "AI Copilot",
     "/app/settings": "Settings",
   };
   const crumbs = [{ href: "/app", label: "Demo workspace" }];
