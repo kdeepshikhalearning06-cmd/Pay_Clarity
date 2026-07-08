@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ComingSoonRouteImport } from './routes/coming-soon'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
 import { Route as AppReportsRouteImport } from './routes/app.reports'
 import { Route as AppEmployeesRouteImport } from './routes/app.employees'
@@ -51,6 +52,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppIndexRoute = AppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
@@ -95,11 +101,11 @@ export interface FileRoutesByFullPath {
   '/app/employees': typeof AppEmployeesRoute
   '/app/reports': typeof AppReportsRouteWithChildren
   '/app/settings': typeof AppSettingsRoute
+  '/app/': typeof AppIndexRoute
   '/app/reports/setup': typeof AppReportsSetupRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/app': typeof AppRouteWithChildren
   '/coming-soon': typeof ComingSoonRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
@@ -109,6 +115,7 @@ export interface FileRoutesByTo {
   '/app/employees': typeof AppEmployeesRoute
   '/app/reports': typeof AppReportsRouteWithChildren
   '/app/settings': typeof AppSettingsRoute
+  '/app': typeof AppIndexRoute
   '/app/reports/setup': typeof AppReportsSetupRoute
 }
 export interface FileRoutesById {
@@ -124,6 +131,7 @@ export interface FileRoutesById {
   '/app/employees': typeof AppEmployeesRoute
   '/app/reports': typeof AppReportsRouteWithChildren
   '/app/settings': typeof AppSettingsRoute
+  '/app/': typeof AppIndexRoute
   '/app/reports/setup': typeof AppReportsSetupRoute
 }
 export interface FileRouteTypes {
@@ -140,11 +148,11 @@ export interface FileRouteTypes {
     | '/app/employees'
     | '/app/reports'
     | '/app/settings'
+    | '/app/'
     | '/app/reports/setup'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/app'
     | '/coming-soon'
     | '/login'
     | '/onboarding'
@@ -154,6 +162,7 @@ export interface FileRouteTypes {
     | '/app/employees'
     | '/app/reports'
     | '/app/settings'
+    | '/app'
     | '/app/reports/setup'
   id:
     | '__root__'
@@ -168,6 +177,7 @@ export interface FileRouteTypes {
     | '/app/employees'
     | '/app/reports'
     | '/app/settings'
+    | '/app/'
     | '/app/reports/setup'
   fileRoutesById: FileRoutesById
 }
@@ -223,6 +233,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/app/': {
+      id: '/app/'
+      path: '/'
+      fullPath: '/app/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
     }
     '/app/settings': {
       id: '/app/settings'
@@ -287,6 +304,7 @@ interface AppRouteChildren {
   AppEmployeesRoute: typeof AppEmployeesRoute
   AppReportsRoute: typeof AppReportsRouteWithChildren
   AppSettingsRoute: typeof AppSettingsRoute
+  AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -295,6 +313,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppEmployeesRoute: AppEmployeesRoute,
   AppReportsRoute: AppReportsRouteWithChildren,
   AppSettingsRoute: AppSettingsRoute,
+  AppIndexRoute: AppIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 
 const KEY = "payclarity.demo";
 const EVT = "payclarity:demo-change";
@@ -8,19 +8,18 @@ function read(): boolean {
   return window.localStorage.getItem(KEY) === "1";
 }
 
-function subscribe(cb: () => void) {
-  if (typeof window === "undefined") return () => {};
-  const handler = () => cb();
-  window.addEventListener(EVT, handler);
-  window.addEventListener("storage", handler);
-  return () => {
-    window.removeEventListener(EVT, handler);
-    window.removeEventListener("storage", handler);
-  };
-}
-
 export function useDemoMode(): [boolean, (v: boolean) => void] {
-  const value = useSyncExternalStore(subscribe, read, () => false);
+  const [value, setValue] = useState(false);
+  useEffect(() => {
+    setValue(read());
+    const handler = () => setValue(read());
+    window.addEventListener(EVT, handler);
+    window.addEventListener("storage", handler);
+    return () => {
+      window.removeEventListener(EVT, handler);
+      window.removeEventListener("storage", handler);
+    };
+  }, []);
   const set = (v: boolean) => {
     if (typeof window === "undefined") return;
     if (v) window.localStorage.setItem(KEY, "1");
