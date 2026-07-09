@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import {
   Plus,
@@ -8,7 +8,6 @@ import {
   Copy,
   Archive,
   FileText,
-  Upload,
   Sparkles,
 } from "lucide-react";
 import { PageHeader } from "@/components/app/AppShell";
@@ -22,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CreateReportModal } from "@/components/app/CreateReportModal";
+import { UploadButton } from "@/components/app/UploadButton";
 import { useDemoMode, enableDemo } from "@/lib/demo-store";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -36,10 +36,10 @@ export const Route = createFileRoute("/app/reports")({
   component: ReportsPage,
 });
 
-type Row = {
+export type ReportRow = {
   name: string;
-  country: string;
-  countryCode: string;
+  cycle: string;
+  countries: string[];
   status: "Draft" | "Data upload" | "In review" | "Submitted";
   employees: number;
   risk: "Low" | "Medium" | "High";
@@ -47,13 +47,57 @@ type Row = {
   date: string;
 };
 
-const DEMO_ROWS: Row[] = [
-  { name: "Germany 2026 Q1", country: "🇩🇪 Germany", countryCode: "DE", status: "In review", employees: 612, risk: "Medium", readiness: 96, date: "Mar 12, 2026" },
-  { name: "France 2026 Q1", country: "🇫🇷 France", countryCode: "FR", status: "Draft", employees: 384, risk: "Low", readiness: 72, date: "Mar 10, 2026" },
-  { name: "Netherlands 2025 FY", country: "🇳🇱 Netherlands", countryCode: "NL", status: "Submitted", employees: 218, risk: "Low", readiness: 100, date: "Feb 04, 2026" },
-  { name: "Spain 2026 Q1", country: "🇪🇸 Spain", countryCode: "ES", status: "Data upload", employees: 214, risk: "High", readiness: 34, date: "Mar 06, 2026" },
-  { name: "Italy 2025 FY", country: "🇮🇹 Italy", countryCode: "IT", status: "Submitted", employees: 158, risk: "Medium", readiness: 100, date: "Jan 21, 2026" },
-  { name: "Poland 2026 Q1", country: "🇵🇱 Poland", countryCode: "PL", status: "Draft", employees: 96, risk: "Low", readiness: 45, date: "Mar 04, 2026" },
+export const DEMO_REPORTS: ReportRow[] = [
+  {
+    name: "FY2026 Pay Transparency Assessment",
+    cycle: "FY 2026",
+    countries: ["🇩🇪 DE", "🇳🇱 NL", "🇮🇹 IT"],
+    status: "In review",
+    employees: 988,
+    risk: "Medium",
+    readiness: 92,
+    date: "Mar 12, 2026",
+  },
+  {
+    name: "2026 Mid-Year Compensation Review",
+    cycle: "H1 2026",
+    countries: ["🇩🇪 DE"],
+    status: "Draft",
+    employees: 612,
+    risk: "Low",
+    readiness: 58,
+    date: "Mar 10, 2026",
+  },
+  {
+    name: "Q1 Compensation Analysis",
+    cycle: "Q1 2026",
+    countries: ["🇩🇪 DE", "🇫🇷 FR"],
+    status: "Data upload",
+    employees: 996,
+    risk: "High",
+    readiness: 34,
+    date: "Mar 06, 2026",
+  },
+  {
+    name: "Annual Compliance Submission 2025",
+    cycle: "FY 2025",
+    countries: ["🇩🇪 DE", "🇳🇱 NL", "🇮🇹 IT", "🇫🇷 FR"],
+    status: "Submitted",
+    employees: 1372,
+    risk: "Low",
+    readiness: 100,
+    date: "Feb 04, 2026",
+  },
+  {
+    name: "Pre-Regulator Internal Review",
+    cycle: "Q4 2025",
+    countries: ["🇩🇪 DE", "🇫🇷 FR"],
+    status: "Submitted",
+    employees: 996,
+    risk: "Medium",
+    readiness: 100,
+    date: "Jan 21, 2026",
+  },
 ];
 
 function ReportsPage() {
@@ -61,25 +105,25 @@ function ReportsPage() {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("all");
-  const [country, setCountry] = useState("all");
+  const [cycle, setCycle] = useState("all");
 
-  const rows: Row[] = demo ? DEMO_ROWS : [];
+  const rows: ReportRow[] = demo ? DEMO_REPORTS : [];
   const filtered = useMemo(
     () =>
       rows.filter(
         (r) =>
           (status === "all" || r.status === status) &&
-          (country === "all" || r.countryCode === country) &&
+          (cycle === "all" || r.cycle === cycle) &&
           (q === "" || r.name.toLowerCase().includes(q.toLowerCase())),
       ),
-    [rows, status, country, q],
+    [rows, status, cycle, q],
   );
 
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader
         title="Reports"
-        description="All pay transparency assessments across your organisation"
+        description="Company-wide pay transparency assessments and reporting cycles"
         actions={
           <Button variant="hero" onClick={() => setOpen(true)}>
             <Plus className="mr-1 h-4 w-4" /> Create new report
@@ -109,16 +153,15 @@ function ReportsPage() {
               <SelectItem value="Submitted">Submitted</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={country} onValueChange={setCountry}>
-            <SelectTrigger className="h-9 w-[150px]"><SelectValue placeholder="Country" /></SelectTrigger>
+          <Select value={cycle} onValueChange={setCycle}>
+            <SelectTrigger className="h-9 w-[150px]"><SelectValue placeholder="Cycle" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All countries</SelectItem>
-              <SelectItem value="DE">🇩🇪 Germany</SelectItem>
-              <SelectItem value="FR">🇫🇷 France</SelectItem>
-              <SelectItem value="NL">🇳🇱 Netherlands</SelectItem>
-              <SelectItem value="ES">🇪🇸 Spain</SelectItem>
-              <SelectItem value="IT">🇮🇹 Italy</SelectItem>
-              <SelectItem value="PL">🇵🇱 Poland</SelectItem>
+              <SelectItem value="all">All cycles</SelectItem>
+              <SelectItem value="Q1 2026">Q1 2026</SelectItem>
+              <SelectItem value="H1 2026">H1 2026</SelectItem>
+              <SelectItem value="FY 2026">FY 2026</SelectItem>
+              <SelectItem value="Q4 2025">Q4 2025</SelectItem>
+              <SelectItem value="FY 2025">FY 2025</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -130,8 +173,9 @@ function ReportsPage() {
             <table className="w-full text-sm">
               <thead className="bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
                 <tr>
-                  <th className="px-5 py-3 font-medium">Report</th>
-                  <th className="px-3 py-3 font-medium">Country</th>
+                  <th className="px-5 py-3 font-medium">Assessment</th>
+                  <th className="px-3 py-3 font-medium">Cycle</th>
+                  <th className="px-3 py-3 font-medium">Countries</th>
                   <th className="px-3 py-3 font-medium">Status</th>
                   <th className="px-3 py-3 font-medium">Employees</th>
                   <th className="px-3 py-3 font-medium">Risk</th>
@@ -150,7 +194,16 @@ function ReportsPage() {
                     className="border-t border-border/60 transition-colors hover:bg-muted/30"
                   >
                     <td className="px-5 py-3 font-medium">{r.name}</td>
-                    <td className="px-3 py-3">{r.country}</td>
+                    <td className="px-3 py-3 text-muted-foreground">{r.cycle}</td>
+                    <td className="px-3 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {r.countries.map((c) => (
+                          <span key={c} className="rounded-full border border-border/60 bg-muted/50 px-2 py-0.5 text-[11px]">
+                            {c}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
                     <td className="px-3 py-3"><StatusBadge status={r.status} /></td>
                     <td className="px-3 py-3 tabular-nums">{r.employees.toLocaleString()}</td>
                     <td className="px-3 py-3"><RiskBadge risk={r.risk} /></td>
@@ -193,14 +246,14 @@ function EmptyReports({ demo, onNewReport }: { demo: boolean; onNewReport: () =>
       <p className="mt-1 max-w-sm text-sm text-muted-foreground">
         {demo
           ? "No reports match your filters. Adjust the filters or create a new report."
-          : "Create your first pay transparency assessment or explore the platform using sample data."}
+            : "Upload a payroll snapshot first, then create your first pay transparency assessment. Or explore with sample data."}
       </p>
       <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-        <Button variant="hero" onClick={onNewReport}><Plus className="mr-1 h-4 w-4" /> Start New Report</Button>
-        <Button variant="outline" onClick={onNewReport}><Upload className="mr-1 h-4 w-4" /> Upload CSV</Button>
+          <UploadButton variant="hero" />
         {!demo && (
           <Button variant="teal" onClick={enableDemo}><Sparkles className="mr-1 h-4 w-4" /> Try Demo Workspace</Button>
         )}
+          <Button variant="outline" onClick={onNewReport}><Plus className="mr-1 h-4 w-4" /> Start New Report</Button>
       </div>
     </div>
   );

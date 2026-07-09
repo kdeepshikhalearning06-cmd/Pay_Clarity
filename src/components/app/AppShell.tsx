@@ -12,9 +12,12 @@ import {
   Search,
   LogOut,
   ChevronRight,
+  Database,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useDemoMode, disableDemo } from "@/lib/demo-store";
+import { toast } from "sonner";
 
 type NavItem = {
   to: string;
@@ -29,6 +32,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     items: [
       { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
       { to: "/app/reports", label: "Reports", icon: FileText },
+      { to: "/app/data-sources", label: "Data sources", icon: Database },
       { to: "/app/employees", label: "Employees", icon: Users },
       { to: "/app/audit", label: "Audit trail", icon: History },
       { to: "/app/copilot", label: "AI Copilot", icon: Bot },
@@ -39,6 +43,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
 export function AppShell() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const crumbs = buildCrumbs(pathname);
+  const [demo] = useDemoMode();
 
   return (
     <div className="flex min-h-screen bg-muted/20">
@@ -48,7 +53,11 @@ export function AppShell() {
             <Sparkles className="h-3.5 w-3.5" />
           </span>
           PayClarity
-          <span className="ml-auto rounded bg-teal/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-teal">Demo</span>
+          {demo && (
+            <span className="ml-auto rounded bg-teal/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-teal">
+              Demo
+            </span>
+          )}
         </Link>
 
         <nav className="flex-1 overflow-y-auto px-3 py-4">
@@ -95,12 +104,25 @@ export function AppShell() {
           >
             <Settings className="h-4 w-4" /> Settings
           </Link>
-          <Link
-            to="/"
-            className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <LogOut className="h-4 w-4" /> Exit demo
-          </Link>
+          {demo ? (
+            <button
+              type="button"
+              onClick={() => {
+                disableDemo();
+                toast("Exited demo mode — returned to your workspace");
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <LogOut className="h-4 w-4" /> Exit demo
+            </button>
+          ) : (
+            <Link
+              to="/"
+              className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <LogOut className="h-4 w-4" /> Sign out
+            </Link>
+          )}
         </div>
       </aside>
 
@@ -154,12 +176,13 @@ function buildCrumbs(pathname: string) {
   const map: Record<string, string> = {
     "/app/reports": "Reports",
     "/app/reports/setup": "New report",
+    "/app/data-sources": "Data sources",
     "/app/employees": "Employees",
     "/app/audit": "Audit trail",
     "/app/copilot": "AI Copilot",
     "/app/settings": "Settings",
   };
-  const crumbs = [{ href: "/app", label: "Demo workspace" }];
+  const crumbs = [{ href: "/app", label: "Workspace" }];
   if (pathname !== "/app" && map[pathname]) {
     crumbs.push({ href: pathname, label: map[pathname] });
   }
