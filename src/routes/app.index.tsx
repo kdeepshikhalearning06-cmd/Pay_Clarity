@@ -7,7 +7,6 @@ import {
   ClipboardCheck,
   AlertTriangle,
   Plus,
-  Upload,
   Sparkles,
   FileText,
   ArrowRight,
@@ -19,11 +18,14 @@ import {
   FileCheck2,
   History,
   Workflow,
+  Database,
 } from "lucide-react";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { CreateReportModal } from "@/components/app/CreateReportModal";
-import { useDemoMode, enableDemo } from "@/lib/demo-store";
+import { UploadButton } from "@/components/app/UploadButton";
+import { WorkflowStrip } from "@/components/app/WorkflowStrip";
+import { useDemoMode, enableDemo, useUploadedFiles } from "@/lib/demo-store";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/app/")({
@@ -33,6 +35,9 @@ export const Route = createFileRoute("/app/")({
 function Dashboard() {
   const [demo] = useDemoMode();
   const [open, setOpen] = useState(false);
+  const files = useUploadedFiles();
+  const hasFiles = files.length > 0;
+  const currentStep = demo ? "human" : hasFiles ? "validate" : "upload";
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -40,8 +45,10 @@ function Dashboard() {
         title={demo ? "Welcome back, Anna" : "Welcome to PayClarity"}
         description={
           demo
-            ? "Germany 2026 Q1 · Sample workspace loaded"
-            : "Your compliance workspace is ready. Start your first pay transparency report."
+            ? "FY2026 Pay Transparency Assessment · Sample workspace loaded"
+            : hasFiles
+              ? `${files.length} data source${files.length > 1 ? "s" : ""} ready · Continue the compliance workflow`
+              : "Upload your first payroll snapshot to begin the compliance workflow."
         }
         actions={
           <div className="flex gap-2">
@@ -52,17 +59,19 @@ function Dashboard() {
                 </Link>
               </Button>
             )}
-            <Button variant="hero" onClick={() => setOpen(true)}>
-              <Plus className="mr-1 h-4 w-4" /> New report
-            </Button>
+            <UploadButton variant="hero" />
           </div>
         }
       />
 
+      <div className="mb-6">
+        <WorkflowStrip current={currentStep} />
+      </div>
+
       {demo ? (
         <ActiveWorkspace onNewReport={() => setOpen(true)} />
       ) : (
-        <EmptyWorkspace onNewReport={() => setOpen(true)} />
+        <EmptyWorkspace onNewReport={() => setOpen(true)} hasFiles={hasFiles} filesCount={files.length} />
       )}
       <CreateReportModal open={open} onOpenChange={setOpen} />
     </div>
@@ -70,7 +79,15 @@ function Dashboard() {
 }
 
 /* ---------------- Empty state ---------------- */
-function EmptyWorkspace({ onNewReport }: { onNewReport: () => void }) {
+function EmptyWorkspace({
+  onNewReport,
+  hasFiles,
+  filesCount,
+}: {
+  onNewReport: () => void;
+  hasFiles: boolean;
+  filesCount: number;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -85,30 +102,43 @@ function EmptyWorkspace({ onNewReport }: { onNewReport: () => void }) {
       />
       <div className="relative mx-auto max-w-lg text-center">
         <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[image:var(--gradient-primary)] text-primary-foreground shadow-[var(--shadow-glow)]">
-          <FileText className="h-6 w-6" />
+          {hasFiles ? <Database className="h-6 w-6" /> : <FileText className="h-6 w-6" />}
         </div>
-        <h2 className="mt-5 font-display text-2xl font-semibold tracking-tight">No reports yet</h2>
+        <h2 className="mt-5 font-display text-2xl font-semibold tracking-tight">
+          {hasFiles ? "Your data is uploaded" : "Start with payroll data"}
+        </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Create your first pay transparency assessment or explore the platform using sample data.
+          {hasFiles
+            ? `${filesCount} snapshot${filesCount > 1 ? "s" : ""} in Data Sources. Review your employees or create your first assessment.`
+            : "Upload your first payroll snapshot to begin. Or explore PayClarity with a sample workspace."}
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-          <Button variant="hero" onClick={onNewReport}>
-            <Plus className="mr-1 h-4 w-4" /> Start New Report
-          </Button>
-          <Button variant="outline" onClick={onNewReport}>
-            <Upload className="mr-1 h-4 w-4" /> Upload CSV
-          </Button>
+          <UploadButton variant="hero" />
           <Button variant="teal" onClick={enableDemo}>
             <Sparkles className="mr-1 h-4 w-4" /> Try Demo Workspace
           </Button>
+          <Button variant="outline" onClick={onNewReport}>
+            <Plus className="mr-1 h-4 w-4" /> Start New Report
+          </Button>
         </div>
+        {hasFiles && (
+          <div className="mt-4 text-xs text-muted-foreground">
+            <Link to="/app/data-sources" className="underline underline-offset-2 hover:text-foreground">
+              Manage data sources
+            </Link>
+            {" · "}
+            <Link to="/app/employees" className="underline underline-offset-2 hover:text-foreground">
+              Review employees
+            </Link>
+          </div>
+        )}
       </div>
 
       <div className="relative mt-10 grid gap-3 md:grid-cols-3">
         {[
+          { icon: Database, title: "Data sources library", body: "Every payroll snapshot stays traceable and previewable." },
           { icon: Workflow, title: "AI job grouping", body: "Cluster hundreds of role titles into audit-ready comparators." },
           { icon: ShieldCheck, title: "Compliance readiness", body: "Track exactly what's left before your report is defensible." },
-          { icon: FileCheck2, title: "Country-specific reports", body: "Generate PDF reports tuned to each country's regulator." },
         ].map((c) => (
           <div key={c.title} className="rounded-xl border border-border/60 bg-background p-4">
             <c.icon className="h-4 w-4 text-teal" />
@@ -139,10 +169,10 @@ function ActiveWorkspace({ onNewReport }: { onNewReport: () => void }) {
   ];
 
   const reports = [
-    { name: "Germany 2026 Q1", country: "🇩🇪 DE", status: "In review", employees: 612, risk: "Medium", readiness: 96, date: "Mar 12, 2026" },
-    { name: "France 2026 Q1", country: "🇫🇷 FR", status: "Draft", employees: 384, risk: "Low", readiness: 72, date: "Mar 10, 2026" },
-    { name: "Netherlands 2025 FY", country: "🇳🇱 NL", status: "Submitted", employees: 218, risk: "Low", readiness: 100, date: "Feb 04, 2026" },
-    { name: "Spain 2026 Q1", country: "🇪🇸 ES", status: "Data upload", employees: 214, risk: "High", readiness: 34, date: "Mar 06, 2026" },
+    { name: "FY2026 Pay Transparency Assessment", cycle: "FY 2026", countries: ["🇩🇪 DE", "🇳🇱 NL", "🇮🇹 IT"], status: "In review", employees: 988, risk: "Medium", readiness: 92, date: "Mar 12, 2026" },
+    { name: "2026 Mid-Year Compensation Review", cycle: "H1 2026", countries: ["🇩🇪 DE"], status: "Draft", employees: 612, risk: "Low", readiness: 58, date: "Mar 10, 2026" },
+    { name: "Q1 Compensation Analysis", cycle: "Q1 2026", countries: ["🇩🇪 DE", "🇫🇷 FR"], status: "Data upload", employees: 996, risk: "High", readiness: 34, date: "Mar 06, 2026" },
+    { name: "Annual Compliance Submission 2025", cycle: "FY 2025", countries: ["🇩🇪 DE", "🇳🇱 NL", "🇮🇹 IT", "🇫🇷 FR"], status: "Submitted", employees: 1372, risk: "Low", readiness: 100, date: "Feb 04, 2026" },
   ];
 
   const activity = [
@@ -184,10 +214,10 @@ function ActiveWorkspace({ onNewReport }: { onNewReport: () => void }) {
           </div>
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <QuickAction icon={Plus} title="Start new report" subtitle="Create a country assessment" onClick={onNewReport} />
-          <QuickAction icon={Upload} title="Upload CSV" subtitle="Bring payroll data in" onClick={onNewReport} />
-          <QuickAction icon={Sparkles} title="Try demo workspace" subtitle="Explore with sample data" onClick={enableDemo} />
-          <QuickAction icon={FileText} title="View reports" subtitle="Manage all assessments" to="/app/reports" />
+          <QuickActionUpload />
+          <QuickAction icon={Database} title="Data sources" subtitle="Manage payroll snapshots" to="/app/data-sources" />
+          <QuickAction icon={Plus} title="New assessment" subtitle="Multi-country reporting cycle" onClick={onNewReport} />
+          <QuickAction icon={FileText} title="View reports" subtitle="All assessments in one place" to="/app/reports" />
         </div>
       </div>
 
@@ -279,8 +309,9 @@ function ActiveWorkspace({ onNewReport }: { onNewReport: () => void }) {
           <table className="w-full text-sm">
             <thead className="bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
-                <th className="px-5 py-3 font-medium">Report</th>
-                <th className="px-3 py-3 font-medium">Country</th>
+                  <th className="px-5 py-3 font-medium">Assessment</th>
+                  <th className="px-3 py-3 font-medium">Cycle</th>
+                  <th className="px-3 py-3 font-medium">Countries</th>
                 <th className="px-3 py-3 font-medium">Status</th>
                 <th className="px-3 py-3 font-medium">Employees</th>
                 <th className="px-3 py-3 font-medium">Risk</th>
@@ -293,7 +324,16 @@ function ActiveWorkspace({ onNewReport }: { onNewReport: () => void }) {
               {reports.map((r) => (
                 <tr key={r.name} className="border-t border-border/60 transition-colors hover:bg-muted/30">
                   <td className="px-5 py-3 font-medium">{r.name}</td>
-                  <td className="px-3 py-3">{r.country}</td>
+                    <td className="px-3 py-3 text-muted-foreground">{r.cycle}</td>
+                    <td className="px-3 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {r.countries.map((c) => (
+                          <span key={c} className="rounded-full border border-border/60 bg-muted/50 px-2 py-0.5 text-[11px]">
+                            {c}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
                   <td className="px-3 py-3"><StatusBadge status={r.status} /></td>
                   <td className="px-3 py-3 tabular-nums">{r.employees.toLocaleString()}</td>
                   <td className="px-3 py-3"><RiskBadge risk={r.risk} /></td>
@@ -337,7 +377,7 @@ function QuickAction({
   icon: typeof Plus;
   title: string;
   subtitle: string;
-  to?: "/app/reports";
+  to?: "/app/reports" | "/app/data-sources" | "/app/employees";
   onClick?: () => void;
 }) {
   const inner = (
@@ -357,6 +397,27 @@ function QuickAction({
       {inner}
     </button>
   );
+}
+
+function QuickActionUpload() {
+  return (
+    <div className="group rounded-xl border border-border/60 bg-background p-3 text-left transition-all hover:-translate-y-0.5 hover:border-teal/40 hover:shadow-[var(--shadow-card)]">
+      <div className="mb-2 flex items-start gap-3">
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[image:var(--gradient-teal)] text-teal-foreground">
+          <UploadIcon />
+        </div>
+        <div className="min-w-0">
+          <div className="text-sm font-medium">Upload payroll CSV</div>
+          <div className="text-[11px] text-muted-foreground">Bring your snapshot in</div>
+        </div>
+      </div>
+      <UploadButton variant="teal" size="sm" className="w-full" />
+    </div>
+  );
+}
+
+function UploadIcon() {
+  return <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>;
 }
 
 function StatusBadge({ status }: { status: string }) {

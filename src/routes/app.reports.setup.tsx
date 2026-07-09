@@ -1,13 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { z } from "zod";
 import { motion } from "motion/react";
-import { ArrowLeft, MapPin, CalendarRange, Check } from "lucide-react";
+import { ArrowLeft, Globe2, CalendarRange, Check, FileText } from "lucide-react";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 
 const searchSchema = z.object({
-  country: z.string().optional(),
-  period: z.string().optional(),
+  name: z.string().optional(),
+  cycle: z.string().optional(),
+  countries: z.string().optional(),
 });
 
 export const Route = createFileRoute("/app/reports/setup")({
@@ -22,11 +23,16 @@ export const Route = createFileRoute("/app/reports/setup")({
 });
 
 function ReportSetupPage() {
-  const { country = "DE", period = "2026-Q1" } = Route.useSearch();
+  const {
+    name = "FY2026 Pay Transparency Assessment",
+    cycle = "FY 2026",
+    countries = "DE,NL,IT",
+  } = Route.useSearch();
+  const countryList: string[] = countries.split(",").filter(Boolean);
 
   const steps = [
     { label: "Report scope", done: true },
-    { label: "Country setup", done: false, current: true },
+    { label: "Country rules", done: false, current: true },
     { label: "Data mapping", done: false },
     { label: "Analysis & review", done: false },
     { label: "Sign-off & export", done: false },
@@ -35,8 +41,8 @@ function ReportSetupPage() {
   return (
     <div className="mx-auto max-w-4xl">
       <PageHeader
-        title="Country setup"
-        description={`Configure reporting rules for ${country} · ${period}`}
+        title={name}
+        description={`${cycle} · ${countryList.length} ${countryList.length === 1 ? "country" : "countries"} included`}
         actions={
           <Button variant="outline" asChild>
             <Link to="/app/reports"><ArrowLeft className="mr-1 h-4 w-4" /> Back to reports</Link>
@@ -91,23 +97,34 @@ function ReportSetupPage() {
               Coming soon
             </div>
             <h2 className="mt-3 font-display text-2xl font-semibold tracking-tight">
-              Country-specific rules for {country}
+              Country-specific rules
             </h2>
             <p className="mt-2 max-w-lg text-sm text-muted-foreground">
-              This step configures the regulatory framework applied to your report — thresholds,
-              required disclosures, joint pay assessment triggers, and language templates.
+              This step configures the regulatory framework applied per country included in this assessment —
+              thresholds, required disclosures, joint pay assessment triggers, and language templates.
             </p>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2">
               <div className="rounded-xl border border-border/60 bg-background p-4">
-                <MapPin className="h-4 w-4 text-teal" />
-                <div className="mt-2 text-sm font-medium">Country</div>
-                <div className="text-xs text-muted-foreground">{country}</div>
+                <FileText className="h-4 w-4 text-teal" />
+                <div className="mt-2 text-sm font-medium">Assessment</div>
+                <div className="text-xs text-muted-foreground">{name}</div>
               </div>
               <div className="rounded-xl border border-border/60 bg-background p-4">
                 <CalendarRange className="h-4 w-4 text-teal" />
-                <div className="mt-2 text-sm font-medium">Reporting period</div>
-                <div className="text-xs text-muted-foreground">{period}</div>
+                <div className="mt-2 text-sm font-medium">Reporting cycle</div>
+                <div className="text-xs text-muted-foreground">{cycle}</div>
+              </div>
+              <div className="rounded-xl border border-border/60 bg-background p-4 sm:col-span-2">
+                <Globe2 className="h-4 w-4 text-teal" />
+                <div className="mt-2 text-sm font-medium">Countries included</div>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {countryList.map((c) => (
+                    <span key={c} className="rounded-full border border-border/60 bg-muted/50 px-2 py-0.5 text-[11px]">
+                      {c}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
 

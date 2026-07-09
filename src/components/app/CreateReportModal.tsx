@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { motion } from "motion/react";
-import { Upload, Sparkles, FileText, ArrowRight } from "lucide-react";
+import { Sparkles, FileText, ArrowRight, Check } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -21,9 +21,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { enableDemo } from "@/lib/demo-store";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-type Source = "csv" | "demo" | null;
+type Source = "existing" | "demo" | null;
+
+const COUNTRIES = [
+  { code: "DE", label: "🇩🇪 Germany" },
+  { code: "FR", label: "🇫🇷 France" },
+  { code: "NL", label: "🇳🇱 Netherlands" },
+  { code: "ES", label: "🇪🇸 Spain" },
+  { code: "IT", label: "🇮🇹 Italy" },
+  { code: "PL", label: "🇵🇱 Poland" },
+];
 
 export function CreateReportModal({
   open,
@@ -33,12 +43,16 @@ export function CreateReportModal({
   onOpenChange: (v: boolean) => void;
 }) {
   const navigate = useNavigate();
-  const [country, setCountry] = useState("DE");
-  const [period, setPeriod] = useState("2026-Q1");
+  const [name, setName] = useState("FY2026 Pay Transparency Assessment");
+  const [cycle, setCycle] = useState("FY 2026");
   const [snapshot, setSnapshot] = useState("2026-03-31");
+  const [countries, setCountries] = useState<string[]>(["DE"]);
   const [source, setSource] = useState<Source>(null);
 
-  const canContinue = country && period && snapshot && source;
+  const canContinue = name.trim() && cycle && snapshot && countries.length > 0 && source;
+
+  const toggleCountry = (code: string) =>
+    setCountries((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
 
   const handleContinue = () => {
     if (!canContinue) return;
@@ -46,48 +60,41 @@ export function CreateReportModal({
       enableDemo();
       toast.success("Sample data loaded into your workspace");
     } else {
-      toast.success("Report draft created");
+      toast.success("Assessment draft created");
     }
     onOpenChange(false);
-    navigate({ to: "/app/reports/setup", search: { country, period } });
+    navigate({
+      to: "/app/reports/setup",
+      search: { name, cycle, countries: countries.join(",") },
+    });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="font-display text-xl">New pay transparency report</DialogTitle>
+          <DialogTitle className="font-display text-xl">New pay transparency assessment</DialogTitle>
           <DialogDescription>
-            Configure the reporting scope. You can upload data now or start with sample data.
+            Name your assessment, pick the cycle, and choose which countries are included.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-2">
           <div className="grid gap-2">
-            <Label htmlFor="country">Country</Label>
-            <Select value={country} onValueChange={setCountry}>
-              <SelectTrigger id="country"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="DE">🇩🇪 Germany</SelectItem>
-                <SelectItem value="FR">🇫🇷 France</SelectItem>
-                <SelectItem value="NL">🇳🇱 Netherlands</SelectItem>
-                <SelectItem value="ES">🇪🇸 Spain</SelectItem>
-                <SelectItem value="IT">🇮🇹 Italy</SelectItem>
-                <SelectItem value="PL">🇵🇱 Poland</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="name">Assessment name</Label>
+            <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="FY2026 Pay Transparency Assessment" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
-              <Label htmlFor="period">Reporting period</Label>
-              <Select value={period} onValueChange={setPeriod}>
-                <SelectTrigger id="period"><SelectValue /></SelectTrigger>
+              <Label htmlFor="cycle">Reporting cycle</Label>
+              <Select value={cycle} onValueChange={setCycle}>
+                <SelectTrigger id="cycle"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="2026-Q1">2026 · Q1</SelectItem>
-                  <SelectItem value="2026-Q2">2026 · Q2</SelectItem>
-                  <SelectItem value="2026-H1">2026 · H1</SelectItem>
-                  <SelectItem value="2026-FY">2026 · Full year</SelectItem>
+                  <SelectItem value="Q1 2026">Q1 2026</SelectItem>
+                  <SelectItem value="Q2 2026">Q2 2026</SelectItem>
+                  <SelectItem value="H1 2026">H1 2026</SelectItem>
+                  <SelectItem value="FY 2026">FY 2026</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -97,15 +104,40 @@ export function CreateReportModal({
             </div>
           </div>
 
+          <div className="grid gap-2">
+            <Label>Countries included</Label>
+            <div className="flex flex-wrap gap-2">
+              {COUNTRIES.map((c) => {
+                const active = countries.includes(c.code);
+                return (
+                  <button
+                    key={c.code}
+                    type="button"
+                    onClick={() => toggleCountry(c.code)}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-all",
+                      active
+                        ? "border-teal bg-teal/10 text-foreground"
+                        : "border-border bg-background text-muted-foreground hover:border-teal/40",
+                    )}
+                  >
+                    {active && <Check className="h-3 w-3 text-teal" />}
+                    {c.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div>
             <Label className="mb-2 block">Data source</Label>
             <div className="grid grid-cols-2 gap-3">
               <SourceOption
-                icon={Upload}
-                title="Upload CSV"
-                subtitle="Bring your payroll export"
-                active={source === "csv"}
-                onClick={() => setSource("csv")}
+                icon={FileText}
+                title="Use uploaded data"
+                subtitle="Reuse files from Data Sources"
+                active={source === "existing"}
+                onClick={() => setSource("existing")}
               />
               <SourceOption
                 icon={Sparkles}
