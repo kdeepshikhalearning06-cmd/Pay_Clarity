@@ -377,7 +377,7 @@ function QuickAction({
   icon: typeof Plus;
   title: string;
   subtitle: string;
-  to?: "/app/reports";
+  to?: "/app/reports" | "/app/data-sources" | "/app/employees";
   onClick?: () => void;
 }) {
   const inner = (
@@ -397,6 +397,27 @@ function QuickAction({
       {inner}
     </button>
   );
+}
+
+function QuickActionUpload() {
+  return (
+    <div className="group rounded-xl border border-border/60 bg-background p-3 text-left transition-all hover:-translate-y-0.5 hover:border-teal/40 hover:shadow-[var(--shadow-card)]">
+      <div className="mb-2 flex items-start gap-3">
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-[image:var(--gradient-teal)] text-teal-foreground">
+          <UploadIcon />
+        </div>
+        <div className="min-w-0">
+          <div className="text-sm font-medium">Upload payroll CSV</div>
+          <div className="text-[11px] text-muted-foreground">Bring your snapshot in</div>
+        </div>
+      </div>
+      <UploadButton variant="teal" size="sm" className="w-full" />
+    </div>
+  );
+}
+
+function UploadIcon() {
+  return <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>;
 }
 
 function StatusBadge({ status }: { status: string }) {
