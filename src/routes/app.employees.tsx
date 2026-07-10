@@ -100,7 +100,7 @@ function EmployeesPage() {
         <div className="flex flex-wrap items-center gap-2 border-b border-border/60 p-4">
           <div className="relative min-w-[200px] flex-1">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Search by ID or role…" value={q} onChange={(e) => setQ(e.target.value)} className="h-9 pl-8" />
+            <Input placeholder="Search employees…" value={q} onChange={(e) => setQ(e.target.value)} className="h-9 pl-8" />
           </div>
           <Select value={country} onValueChange={setCountry}>
             <SelectTrigger className="h-9 w-[140px]"><SelectValue placeholder="Country" /></SelectTrigger>
