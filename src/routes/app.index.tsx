@@ -25,6 +25,8 @@ import { Button } from "@/components/ui/button";
 import { CreateReportModal } from "@/components/app/CreateReportModal";
 import { UploadButton } from "@/components/app/UploadButton";
 import { WorkflowStrip } from "@/components/app/WorkflowStrip";
+import { ReportDetailsDrawer } from "@/components/app/ReportDetailsDrawer";
+import type { ReportRow } from "@/routes/app.reports";
 import { useDemoMode, enableDemo, useUploadedFiles } from "@/lib/demo-store";
 import { cn } from "@/lib/utils";
 
@@ -153,6 +155,7 @@ function EmptyWorkspace({
 
 /* ---------------- Active state ---------------- */
 function ActiveWorkspace({ onNewReport }: { onNewReport: () => void }) {
+  const [viewing, setViewing] = useState<ReportRow | null>(null);
   const kpis = [
     { label: "Compliance readiness", value: "96%", delta: "+12 pts this month", icon: ShieldCheck, tone: "text-success" },
     { label: "Employees analysed", value: "1,428", delta: "5 countries · 6 depts", icon: Users, tone: "text-info" },
@@ -168,7 +171,7 @@ function ActiveWorkspace({ onNewReport }: { onNewReport: () => void }) {
     { text: "Report submission deadline in 18 days", tone: "info", to: "/app/reports" },
   ];
 
-  const reports = [
+  const reports: ReportRow[] = [
     { name: "FY2026 Pay Transparency Assessment", cycle: "FY 2026", countries: ["🇩🇪 DE", "🇳🇱 NL", "🇮🇹 IT"], status: "In review", employees: 988, risk: "Medium", readiness: 92, date: "Mar 12, 2026" },
     { name: "2026 Mid-Year Compensation Review", cycle: "H1 2026", countries: ["🇩🇪 DE"], status: "Draft", employees: 612, risk: "Low", readiness: 58, date: "Mar 10, 2026" },
     { name: "Q1 Compensation Analysis", cycle: "Q1 2026", countries: ["🇩🇪 DE", "🇫🇷 FR"], status: "Data upload", employees: 996, risk: "High", readiness: 34, date: "Mar 06, 2026" },
@@ -353,8 +356,8 @@ function ActiveWorkspace({ onNewReport }: { onNewReport: () => void }) {
                   </td>
                   <td className="px-3 py-3 text-muted-foreground">{r.date}</td>
                   <td className="px-5 py-3 text-right">
-                    <Button size="sm" variant="ghost" asChild>
-                      <Link to="/app/reports"><Eye className="mr-1 h-3.5 w-3.5" /> View</Link>
+                    <Button size="sm" variant="ghost" onClick={() => setViewing(r)}>
+                      <Eye className="mr-1 h-3.5 w-3.5" /> View
                     </Button>
                   </td>
                 </tr>
@@ -363,6 +366,11 @@ function ActiveWorkspace({ onNewReport }: { onNewReport: () => void }) {
           </table>
         </div>
       </div>
+      <ReportDetailsDrawer
+        report={viewing}
+        open={viewing !== null}
+        onOpenChange={(v) => !v && setViewing(null)}
+      />
     </div>
   );
 }
