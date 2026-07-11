@@ -22,6 +22,7 @@ import { Route as AppReviewRouteImport } from './routes/app.review'
 import { Route as AppReportsRouteImport } from './routes/app.reports'
 import { Route as AppHumanReviewRouteImport } from './routes/app.human-review'
 import { Route as AppGroupingRouteImport } from './routes/app.grouping'
+import { Route as AppGenerateReportRouteImport } from './routes/app.generate-report'
 import { Route as AppGapAnalysisRouteImport } from './routes/app.gap-analysis'
 import { Route as AppExplanationsRouteImport } from './routes/app.explanations'
 import { Route as AppEmployeesRouteImport } from './routes/app.employees'
@@ -95,6 +96,11 @@ const AppGroupingRoute = AppGroupingRouteImport.update({
   path: '/grouping',
   getParentRoute: () => AppRoute,
 } as any)
+const AppGenerateReportRoute = AppGenerateReportRouteImport.update({
+  id: '/generate-report',
+  path: '/generate-report',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppGapAnalysisRoute = AppGapAnalysisRouteImport.update({
   id: '/gap-analysis',
   path: '/gap-analysis',
@@ -144,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/app/employees': typeof AppEmployeesRoute
   '/app/explanations': typeof AppExplanationsRoute
   '/app/gap-analysis': typeof AppGapAnalysisRoute
+  '/app/generate-report': typeof AppGenerateReportRoute
   '/app/grouping': typeof AppGroupingRoute
   '/app/human-review': typeof AppHumanReviewRoute
   '/app/reports': typeof AppReportsRouteWithChildren
@@ -165,6 +172,7 @@ export interface FileRoutesByTo {
   '/app/employees': typeof AppEmployeesRoute
   '/app/explanations': typeof AppExplanationsRoute
   '/app/gap-analysis': typeof AppGapAnalysisRoute
+  '/app/generate-report': typeof AppGenerateReportRoute
   '/app/grouping': typeof AppGroupingRoute
   '/app/human-review': typeof AppHumanReviewRoute
   '/app/reports': typeof AppReportsRouteWithChildren
@@ -188,6 +196,7 @@ export interface FileRoutesById {
   '/app/employees': typeof AppEmployeesRoute
   '/app/explanations': typeof AppExplanationsRoute
   '/app/gap-analysis': typeof AppGapAnalysisRoute
+  '/app/generate-report': typeof AppGenerateReportRoute
   '/app/grouping': typeof AppGroupingRoute
   '/app/human-review': typeof AppHumanReviewRoute
   '/app/reports': typeof AppReportsRouteWithChildren
@@ -212,6 +221,7 @@ export interface FileRouteTypes {
     | '/app/employees'
     | '/app/explanations'
     | '/app/gap-analysis'
+    | '/app/generate-report'
     | '/app/grouping'
     | '/app/human-review'
     | '/app/reports'
@@ -233,6 +243,7 @@ export interface FileRouteTypes {
     | '/app/employees'
     | '/app/explanations'
     | '/app/gap-analysis'
+    | '/app/generate-report'
     | '/app/grouping'
     | '/app/human-review'
     | '/app/reports'
@@ -255,6 +266,7 @@ export interface FileRouteTypes {
     | '/app/employees'
     | '/app/explanations'
     | '/app/gap-analysis'
+    | '/app/generate-report'
     | '/app/grouping'
     | '/app/human-review'
     | '/app/reports'
@@ -367,6 +379,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppGroupingRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/generate-report': {
+      id: '/app/generate-report'
+      path: '/generate-report'
+      fullPath: '/app/generate-report'
+      preLoaderRoute: typeof AppGenerateReportRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/gap-analysis': {
       id: '/app/gap-analysis'
       path: '/gap-analysis'
@@ -438,6 +457,7 @@ interface AppRouteChildren {
   AppEmployeesRoute: typeof AppEmployeesRoute
   AppExplanationsRoute: typeof AppExplanationsRoute
   AppGapAnalysisRoute: typeof AppGapAnalysisRoute
+  AppGenerateReportRoute: typeof AppGenerateReportRoute
   AppGroupingRoute: typeof AppGroupingRoute
   AppHumanReviewRoute: typeof AppHumanReviewRoute
   AppReportsRoute: typeof AppReportsRouteWithChildren
@@ -454,6 +474,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppEmployeesRoute: AppEmployeesRoute,
   AppExplanationsRoute: AppExplanationsRoute,
   AppGapAnalysisRoute: AppGapAnalysisRoute,
+  AppGenerateReportRoute: AppGenerateReportRoute,
   AppGroupingRoute: AppGroupingRoute,
   AppHumanReviewRoute: AppHumanReviewRoute,
   AppReportsRoute: AppReportsRouteWithChildren,
