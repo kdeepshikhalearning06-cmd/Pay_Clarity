@@ -1,6 +1,6 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { motion } from "motion/react";
-import { LayoutDashboard, FileText, Users, Bot, History, Settings, Sparkles, Bell, Search, LogOut, ChevronRight, Database, Scale, ChartBar as BarChart3, TrendingUp } from "lucide-react";
+import { LayoutDashboard, FileText, Users, Bot, History, Settings, Sparkles, Bell, Search, LogOut, ChevronRight, Database, Scale, ChartBar as BarChart3, TrendingUp, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useDemoMode, disableDemo } from "@/lib/demo-store";
@@ -18,6 +18,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     label: "Workspace",
     items: [
       { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
+      { to: "/app/company-profile", label: "Company profile", icon: Building2 },
       { to: "/app/executive", label: "Executive view", icon: BarChart3 },
       { to: "/app/reports", label: "Reports", icon: FileText },
       { to: "/app/data-sources", label: "Data sources", icon: Database },
@@ -181,6 +182,7 @@ function buildCrumbs(pathname: string) {
     "/app/compliance/$countryCode": "Country detail",
     "/app/copilot": "AI Copilot",
     "/app/executive": "Executive view",
+    "/app/company-profile": "Company profile",
     "/app/settings": "Settings",
   };
   const crumbs = [{ href: "/app", label: "Workspace" }];

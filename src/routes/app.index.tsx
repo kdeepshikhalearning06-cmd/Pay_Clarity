@@ -156,11 +156,11 @@ function ActiveWorkspace({ onNewReport }: { onNewReport: () => void }) {
     { label: "Pay gaps requiring action", value: "2", delta: "Above 5% threshold", icon: AlertTriangle, tone: "text-destructive" },
   ];
 
-  const tasks: { text: string; tone: "danger" | "warning" | "info"; to: "/app/reports" | "/app/employees" | "/app/copilot" }[] = [
-    { text: "2 explanations require legal review", tone: "warning", to: "/app/copilot" },
+  const tasks: { text: string; tone: "danger" | "warning" | "info"; to: "/app/reports" | "/app/employees" | "/app/copilot" | "/app/human-review" }[] = [
+    { text: "2 explanations require legal review", tone: "warning", to: "/app/human-review" },
     { text: "4 employees remain ungrouped", tone: "warning", to: "/app/employees" },
-    { text: "FY2026 assessment contains an unexplained pay gap above 5% threshold", tone: "danger", to: "/app/reports" },
-    { text: "Joint pay assessment may be required for Sales cluster", tone: "danger", to: "/app/reports" },
+    { text: "FY2026 assessment contains an unexplained pay gap above 5% threshold", tone: "danger", to: "/app/human-review" },
+    { text: "Joint pay assessment may be required for Sales cluster", tone: "danger", to: "/app/human-review" },
     { text: "Report submission deadline in 18 days", tone: "info", to: "/app/reports" },
   ];
 

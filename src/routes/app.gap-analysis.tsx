@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "motion/react";
-import { ChartLine as LineChart, ArrowLeft, ArrowRight, Users, Building2, TriangleAlert as AlertTriangle, ShieldCheck, Bot, TrendingUp, TrendingDown, Download, Flag, StickyNote, ChevronRight, CircleCheck as CheckCircle2, CircleAlert as AlertCircle, FileSpreadsheet } from "lucide-react";
+import { ChartLine as LineChart, ArrowLeft, ArrowRight, Users, Building2, TriangleAlert as AlertTriangle, ShieldCheck, Bot, TrendingUp, TrendingDown, Download, Flag, StickyNote, ChevronRight, CircleCheck as CheckCircle2, CircleAlert as AlertCircle, FileSpreadsheet, ClipboardCheck } from "lucide-react";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -669,6 +669,20 @@ function GapAnalysisPage() {
           <Link to="/app/explanations">
             Continue to AI explanations{" "}
             <ArrowRight className="ml-1 h-4 w-4" />
+          </Link>
+        </Button>
+      </div>
+
+      {/* Quick access to Human Review */}
+      <div className="mt-4 flex items-center justify-between rounded-xl border border-teal/30 bg-teal/5 p-3">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <ClipboardCheck className="h-4 w-4 text-teal" />
+          5 explanations are waiting for human review and approval.
+        </div>
+        <Button size="sm" variant="ghost" asChild>
+          <Link to="/app/human-review">
+            Go to Human Review{" "}
+            <ArrowRight className="ml-1 h-3.5 w-3.5" />
           </Link>
         </Button>
       </div>

@@ -1,7 +1,30 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "motion/react";
-import { ClipboardCheck, ArrowLeft, ArrowRight, Check, X, Pencil, Flag, Gavel, FileSearch, ArrowLeftRight, Clock, User, Bot, CircleAlert as AlertCircle, CircleCheck as CheckCircle2, TriangleAlert as AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  ClipboardCheck,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  X,
+  Pencil,
+  Flag,
+  Gavel,
+  FileSearch,
+  Clock,
+  User,
+  Bot,
+  CircleAlert as AlertCircle,
+  CircleCheck as CheckCircle2,
+  TriangleAlert as AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  Save,
+  CircleDot,
+  ShieldCheck,
+  Scale,
+  FolderCheck,
+} from "lucide-react";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,6 +38,8 @@ import {
 import { WorkflowStrip } from "@/components/app/WorkflowStrip";
 import { ComplianceAlert } from "@/components/app/ComplianceAlert";
 import { useDemoMode, useUploadedFiles } from "@/lib/demo-store";
+import { COMPANY } from "@/lib/company-context";
+import { getCountryProfile } from "@/lib/country-profiles";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -34,16 +59,20 @@ export const Route = createFileRoute("/app/human-review")({
 
 type ReviewStatus =
   | "pending"
+  | "in_progress"
+  | "draft_saved"
   | "approved"
-  | "needs_revision"
   | "escalated"
-  | "rejected";
+  | "completed";
+
+type RiskLevel = "high" | "medium" | "low";
 
 type ReviewItem = {
   id: string;
   category: string;
   gapPct: number;
   confidence: number;
+  riskLevel: RiskLevel;
   draft: string;
   factors: string[];
   reviewer: string;
@@ -56,6 +85,7 @@ const REVIEW_ITEMS: ReviewItem[] = [
     category: "Engineering IC Level 2",
     gapPct: 6.3,
     confidence: 78,
+    riskLevel: "medium",
     draft:
       "Engineering IC Level 2 shows a 6.3% pay gap. Initial analysis suggests the difference may be partially explained by tenure distribution and geographic salary adjustments. Human review is required before this explanation can be used for compliance reporting.",
     factors: ["Tenure distribution", "Geographic adjustments", "Experience levels"],
@@ -67,6 +97,7 @@ const REVIEW_ITEMS: ReviewItem[] = [
     category: "Engineering Management",
     gapPct: 6.7,
     confidence: 65,
+    riskLevel: "medium",
     draft:
       "Engineering Management shows a 6.7% pay gap. The small sample size (12 employees) means the gap is heavily influenced by two male Director-level managers with longer tenure. Human review is strongly recommended before using this explanation for compliance reporting.",
     factors: ["Seniority differences", "Market premium roles"],
@@ -78,6 +109,7 @@ const REVIEW_ITEMS: ReviewItem[] = [
     category: "Data & Analytics",
     gapPct: 7.3,
     confidence: 72,
+    riskLevel: "medium",
     draft:
       "Data & Analytics shows a 7.3% pay gap. Analysis suggests the difference may be partially explained by market premium for data engineering roles, experience level differences, and geographic adjustments. The remaining 2.0 percentage points require documented justification and human review.",
     factors: ["Market premium roles", "Experience levels", "Geographic adjustments"],
@@ -89,6 +121,7 @@ const REVIEW_ITEMS: ReviewItem[] = [
     category: "Sales Management",
     gapPct: 9.4,
     confidence: 55,
+    riskLevel: "high",
     draft:
       "Sales Management shows a 9.4% pay gap. Gap exceeds 5% with no objective justification identified. Seniority distribution is similar. Recommend joint pay assessment per EU directive Article 10.",
     factors: ["No objective factors identified"],
@@ -100,6 +133,7 @@ const REVIEW_ITEMS: ReviewItem[] = [
     category: "Marketing IC",
     gapPct: 10.1,
     confidence: 48,
+    riskLevel: "high",
     draft:
       "Marketing IC shows a 10.1% pay gap. Significant gap with no objective factors identified. Role levels appear comparable. Recommend immediate joint pay assessment and human review.",
     factors: ["No objective factors identified"],
@@ -115,20 +149,27 @@ const REVIEWERS = [
   "Unassigned",
 ];
 
+const STATUS_FLOW: { label: string; icon: typeof Bot; description: string }[] = [
+  { label: "AI Analysis Generated", icon: Bot, description: "AI draft explanation created from gap analysis" },
+  { label: "Human Review Started", icon: ClipboardCheck, description: "Reviewer opens the item and begins assessment" },
+  { label: "Human Decision Submitted", icon: Check, description: "Reviewer submits final justification" },
+  { label: "Review Completed", icon: CheckCircle2, description: "Decision recorded in audit trail" },
+];
+
 function HumanReviewPage() {
   const [demo] = useDemoMode();
   const files = useUploadedFiles();
   const hasData = demo || files.length > 0;
 
   const [statuses, setStatuses] = useState<Record<string, ReviewStatus>>({});
-  const [notes, setNotes] = useState<Record<string, string>>({});
-  const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState("");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [justifications, setJustifications] = useState<Record<string, string>>({});
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [reviewers, setReviewers] = useState<Record<string, string>>({});
   const [statusFilter, setStatusFilter] = useState("all");
   const [reviewerFilter, setReviewerFilter] = useState("all");
-  const [reviewers, setReviewers] = useState<Record<string, string>>({});
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const profile = getCountryProfile(COMPANY.country);
 
   const stats = useMemo(() => {
     const items = REVIEW_ITEMS.map((r) => ({
@@ -136,16 +177,13 @@ function HumanReviewPage() {
       status: statuses[r.id] ?? "pending",
     }));
     const pending = items.filter((i) => i.status === "pending").length;
-    const approved = items.filter((i) => i.status === "approved").length;
-    const escalated = items.filter((i) => i.status === "escalated").length;
-    const rejected = items.filter((i) => i.status === "rejected").length;
-    const completed = items.filter(
-      (i) => i.status !== "pending" && i.status !== "needs_revision",
+    const inProgress = items.filter(
+      (i) => i.status === "in_progress" || i.status === "draft_saved",
     ).length;
-    const completionPct = Math.round(
-      (completed / items.length) * 100,
-    );
-    return { pending, approved, escalated, rejected, completionPct };
+    const approved = items.filter((i) => i.status === "approved" || i.status === "completed").length;
+    const escalated = items.filter((i) => i.status === "escalated").length;
+    const completionPct = Math.round((approved / items.length) * 100);
+    return { pending, inProgress, approved, escalated, completionPct };
   }, [statuses]);
 
   const filteredItems = useMemo(
@@ -165,33 +203,34 @@ function HumanReviewPage() {
     setStatuses((prev) => ({ ...prev, [id]: status }));
     const labels: Record<ReviewStatus, string> = {
       pending: "returned to pending",
+      in_progress: "marked as in progress",
+      draft_saved: "draft saved",
       approved: "approved",
-      needs_revision: "marked as needing revision",
       escalated: "escalated for legal review",
-      rejected: "rejected",
+      completed: "completed",
     };
     toast.success(`Explanation ${labels[status]}`);
   };
 
-  const handleStartEdit = (item: ReviewItem) => {
-    setEditingId(item.id);
-    setEditValue(item.draft);
+  const handleSaveDraft = (id: string) => {
+    updateStatus(id, "draft_saved");
   };
 
-  const handleSaveEdit = (id: string) => {
-    setEditingId(null);
-    setStatuses((prev) => ({ ...prev, [id]: "needs_revision" }));
-    toast.success("Explanation updated and marked for revision");
-  };
-
-  const handleSaveNote = (id: string) => {
-    const note = notes[id]?.trim();
-    if (!note) {
-      toast("Note is empty");
+  const handleFinalise = (id: string) => {
+    if (!justifications[id]?.trim()) {
+      toast("Add a final justification before finalising");
       return;
     }
-    setActiveNoteId(null);
-    toast.success("Reviewer note saved");
+    updateStatus(id, "completed");
+  };
+
+  const handleApproveContinue = (id: string) => {
+    updateStatus(id, "approved");
+    setActiveId(null);
+  };
+
+  const handleEscalate = (id: string) => {
+    updateStatus(id, "escalated");
   };
 
   if (!hasData) {
@@ -235,14 +274,54 @@ function HumanReviewPage() {
         />
       </div>
 
+      {/* Country-specific guidance */}
+      {profile && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6 rounded-2xl border border-info/30 bg-info/5 p-4"
+        >
+          <div className="flex items-start gap-3">
+            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-info/10 text-info">
+              <Scale className="h-4 w-4" />
+            </div>
+            <div className="flex-1">
+              <div className="text-sm font-medium">
+                {profile.country} recommends maintaining evidence supporting:
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {profile.acceptedJustifications.map((j) => (
+                  <span
+                    key={j}
+                    className="rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-[11px] font-medium text-success"
+                  >
+                    {j}
+                  </span>
+                ))}
+              </div>
+              <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <FolderCheck className="h-3.5 w-3.5 text-teal" />
+                Keep evidence: {profile.evidenceToKeep.slice(0, 3).join(", ")}, and more.
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* KPI cards */}
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {[
           {
-            label: "Pending reviews",
+            label: "Pending",
             value: stats.pending,
             icon: Clock,
             tone: "text-muted-foreground",
+          },
+          {
+            label: "In progress",
+            value: stats.inProgress,
+            icon: CircleDot,
+            tone: "text-teal",
           },
           {
             label: "Approved",
@@ -255,12 +334,6 @@ function HumanReviewPage() {
             value: stats.escalated,
             icon: Gavel,
             tone: "text-warning",
-          },
-          {
-            label: "Rejected",
-            value: stats.rejected,
-            icon: X,
-            tone: "text-destructive",
           },
           {
             label: "Completion",
@@ -340,6 +413,79 @@ function HumanReviewPage() {
         </div>
       </motion.div>
 
+      {/* Review queue table */}
+      <div className="mb-6 rounded-2xl border border-border/60 bg-card shadow-[var(--shadow-card)]">
+        <div className="border-b border-border/60 p-4">
+          <div className="text-sm font-medium">Review queue</div>
+          <div className="text-xs text-muted-foreground">
+            All categories flagged for human review
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3 font-medium">Employee group</th>
+                <th className="px-3 py-3 font-medium">Pay gap</th>
+                <th className="px-3 py-3 font-medium">Confidence</th>
+                <th className="px-3 py-3 font-medium">Reviewer</th>
+                <th className="px-3 py-3 font-medium">Risk</th>
+                <th className="px-3 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium" />
+              </tr>
+            </thead>
+            <tbody>
+              {REVIEW_ITEMS.map((item) => {
+                const status = statuses[item.id] ?? "pending";
+                const reviewer = reviewers[item.id] ?? item.reviewer;
+                return (
+                  <tr
+                    key={item.id}
+                    className="border-t border-border/60 transition-colors hover:bg-muted/30"
+                  >
+                    <td className="px-4 py-3 font-medium">{item.category}</td>
+                    <td className="px-3 py-3">
+                      <span
+                        className={cn(
+                          "font-display font-semibold tabular-nums",
+                          item.gapPct >= 5 ? "text-warning" : "text-success",
+                        )}
+                      >
+                        {item.gapPct.toFixed(1)}%
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 tabular-nums text-muted-foreground">
+                      {item.confidence}%
+                    </td>
+                    <td className="px-3 py-3 text-muted-foreground">{reviewer}</td>
+                    <td className="px-3 py-3">
+                      <RiskBadge level={item.riskLevel} />
+                    </td>
+                    <td className="px-3 py-3">
+                      <ReviewStatusBadge status={status} />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Button
+                        size="sm"
+                        variant={activeId === item.id ? "hero" : "ghost"}
+                        onClick={() => {
+                          setActiveId(activeId === item.id ? null : item.id);
+                          if (statuses[item.id] === "pending") {
+                            updateStatus(item.id, "in_progress");
+                          }
+                        }}
+                      >
+                        {activeId === item.id ? "Reviewing" : "Review"}
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* Filters */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -348,11 +494,12 @@ function HumanReviewPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="pending">Pending review</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="in_progress">In progress</SelectItem>
+            <SelectItem value="draft_saved">Draft saved</SelectItem>
             <SelectItem value="approved">Approved</SelectItem>
-            <SelectItem value="needs_revision">Needs revision</SelectItem>
             <SelectItem value="escalated">Escalated</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
           </SelectContent>
         </Select>
         <Select value={reviewerFilter} onValueChange={setReviewerFilter}>
@@ -378,6 +525,7 @@ function HumanReviewPage() {
         {filteredItems.map((item, i) => {
           const status = statuses[item.id] ?? "pending";
           const reviewer = reviewers[item.id] ?? item.reviewer;
+          const isActive = activeId === item.id;
           return (
             <motion.div
               key={item.id}
@@ -387,9 +535,10 @@ function HumanReviewPage() {
               className={cn(
                 "rounded-2xl border bg-card p-5 shadow-[var(--shadow-card)] transition-all",
                 status === "approved" && "border-success/30",
-                status === "rejected" && "border-border/60 opacity-50",
+                status === "completed" && "border-success/30",
                 status === "escalated" && "border-warning/30",
-                status === "needs_revision" && "border-teal/40",
+                status === "draft_saved" && "border-teal/40",
+                status === "in_progress" && "border-teal/40",
                 status === "pending" && "border-border/60",
               )}
             >
@@ -410,6 +559,7 @@ function HumanReviewPage() {
                     >
                       {item.gapPct.toFixed(1)}% gap
                     </span>
+                    <RiskBadge level={item.riskLevel} />
                     <ReviewStatusBadge status={status} />
                   </div>
                   <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-foreground">
@@ -429,40 +579,41 @@ function HumanReviewPage() {
                 </div>
               </div>
 
-              {/* AI Draft */}
+              {/* AI Recommendation Card */}
               <div className="mt-4 rounded-xl border border-teal/30 bg-teal/5 p-4">
-                <div className="flex items-start gap-2">
+                <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  <Bot className="h-3.5 w-3.5 text-teal" /> AI recommendation
+                </div>
+                <div className="mt-2 flex items-start gap-2">
                   <Bot className="mt-0.5 h-4 w-4 shrink-0 text-teal" />
-                  {editingId === item.id ? (
-                    <div className="min-w-0 flex-1">
-                      <Textarea
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        className="min-h-[100px] bg-background text-sm leading-relaxed"
-                        autoFocus
-                      />
-                      <div className="mt-2 flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="hero"
-                          onClick={() => handleSaveEdit(item.id)}
-                        >
-                          <Check className="mr-1 h-3.5 w-3.5" /> Save changes
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setEditingId(null)}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-sm leading-relaxed text-muted-foreground">
-                      {item.draft}
-                    </p>
-                  )}
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {item.draft}
+                  </p>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Confidence:
+                    </span>
+                    <span
+                      className={cn(
+                        "font-display text-sm font-bold tabular-nums",
+                        item.confidence >= 75
+                          ? "text-success"
+                          : item.confidence >= 60
+                            ? "text-teal"
+                            : "text-warning",
+                      )}
+                    >
+                      {item.confidence}%
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                      Risk:
+                    </span>
+                    <RiskBadge level={item.riskLevel} />
+                  </div>
                 </div>
               </div>
 
@@ -472,20 +623,161 @@ function HumanReviewPage() {
                   Objective factors
                 </div>
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {item.factors.map((f) => (
-                    <span
-                      key={f}
-                      className="rounded-md border border-border/60 bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground"
-                    >
-                      {f}
-                    </span>
-                  ))}
+                  {item.factors.map((f) => {
+                    const isAccepted =
+                      profile?.acceptedJustifications.some((j) =>
+                        f.toLowerCase().includes(j.toLowerCase().split(" ")[0]),
+                      );
+                    return (
+                      <span
+                        key={f}
+                        className={cn(
+                          "rounded-md border px-2 py-0.5 text-[11px]",
+                          isAccepted
+                            ? "border-success/30 bg-success/10 text-success"
+                            : "border-border/60 bg-muted/40 text-muted-foreground",
+                        )}
+                      >
+                        {isAccepted && (
+                          <CheckCircle2 className="mr-0.5 inline h-2.5 w-2.5" />
+                        )}
+                        {f}
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Expandable reviewer notes */}
+              {/* Human Decision Panel (active review) */}
               <AnimatePresence>
-                {expandedId === item.id && (
+                {isActive && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-4 rounded-xl border border-border/60 bg-background p-4">
+                      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                        <Pencil className="h-3.5 w-3.5 text-teal" /> Final human justification
+                      </div>
+                      <Textarea
+                        value={justifications[item.id] ?? ""}
+                        onChange={(e) =>
+                          setJustifications((prev) => ({
+                            ...prev,
+                            [item.id]: e.target.value,
+                          }))
+                        }
+                        placeholder="Enter your final justification. Example: The pay difference is justified by two additional years of experience and team leadership responsibilities."
+                        className="mt-2 min-h-[100px]"
+                      />
+
+                      {/* Decision controls */}
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleSaveDraft(item.id)}
+                        >
+                          <Save className="mr-1 h-3.5 w-3.5" />
+                          Save draft
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="hero"
+                          onClick={() => handleApproveContinue(item.id)}
+                        >
+                          <Check className="mr-1 h-3.5 w-3.5" />
+                          Approve & continue
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleFinalise(item.id)}
+                        >
+                          <ShieldCheck className="mr-1 h-3.5 w-3.5" />
+                          Finalise review
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEscalate(item.id)}
+                        >
+                          <Gavel className="mr-1 h-3.5 w-3.5 text-warning" />
+                          Escalate
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => updateStatus(item.id, "pending")}
+                        >
+                          <X className="mr-1 h-3.5 w-3.5 text-destructive" />
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Review timeline */}
+                    <div className="mt-4 rounded-xl border border-border/60 bg-background p-4">
+                      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                        <Clock className="h-3.5 w-3.5 text-teal" /> Review timeline
+                      </div>
+                      <ol className="mt-3 space-y-2">
+                        {STATUS_FLOW.map((s, idx) => {
+                          const reached =
+                            (idx === 0) ||
+                            (idx === 1 && status !== "pending") ||
+                            (idx === 2 &&
+                              (status === "approved" ||
+                                status === "completed" ||
+                                status === "draft_saved")) ||
+                            (idx === 3 && (status === "approved" || status === "completed"));
+                          return (
+                            <li
+                              key={s.label}
+                              className="flex items-start gap-3"
+                            >
+                              <div className="flex flex-col items-center">
+                                <div
+                                  className={cn(
+                                    "grid h-6 w-6 place-items-center rounded-full text-[10px]",
+                                    reached
+                                      ? "bg-teal/10 text-teal"
+                                      : "bg-muted text-muted-foreground",
+                                  )}
+                                >
+                                  <s.icon className="h-3 w-3" />
+                                </div>
+                                {idx < STATUS_FLOW.length - 1 && (
+                                  <div className="my-0.5 h-4 w-px bg-border/60" />
+                                )}
+                              </div>
+                              <div>
+                                <div
+                                  className={cn(
+                                    "text-xs font-medium",
+                                    reached ? "text-foreground" : "text-muted-foreground",
+                                  )}
+                                >
+                                  {s.label}
+                                </div>
+                                <div className="text-[11px] text-muted-foreground">
+                                  {s.description}
+                                </div>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Expandable saved justification */}
+              <AnimatePresence>
+                {expandedId === item.id && !isActive && (
                   <motion.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}
@@ -495,15 +787,15 @@ function HumanReviewPage() {
                   >
                     <div className="mt-4 rounded-lg border border-border/60 bg-background p-3">
                       <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                        Reviewer notes
+                        Final justification
                       </div>
-                      {notes[item.id] ? (
+                      {justifications[item.id] ? (
                         <p className="mt-2 text-sm text-muted-foreground">
-                          {notes[item.id]}
+                          {justifications[item.id]}
                         </p>
                       ) : (
                         <p className="mt-2 text-xs text-muted-foreground italic">
-                          No notes recorded yet.
+                          No justification recorded yet.
                         </p>
                       )}
                     </div>
@@ -511,15 +803,26 @@ function HumanReviewPage() {
                 )}
               </AnimatePresence>
 
-              {/* Actions */}
-              {editingId !== item.id && (
+              {/* Quick actions (when not actively reviewing) */}
+              {!isActive && (
                 <div className="mt-4 flex flex-wrap items-center gap-1.5">
-                  {status === "pending" || status === "needs_revision" ? (
+                  {status === "pending" || status === "draft_saved" || status === "in_progress" ? (
                     <>
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => updateStatus(item.id, "approved")}
+                        onClick={() => {
+                          setActiveId(item.id);
+                          if (status === "pending") updateStatus(item.id, "in_progress");
+                        }}
+                      >
+                        <Pencil className="mr-1 h-3.5 w-3.5" />
+                        Review
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleApproveContinue(item.id)}
                       >
                         <Check className="mr-1 h-3.5 w-3.5 text-success" />
                         Approve
@@ -527,23 +830,7 @@ function HumanReviewPage() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => handleStartEdit(item)}
-                      >
-                        <Pencil className="mr-1 h-3.5 w-3.5" />
-                        Edit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => updateStatus(item.id, "rejected")}
-                      >
-                        <X className="mr-1 h-3.5 w-3.5 text-destructive" />
-                        Reject
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => updateStatus(item.id, "escalated")}
+                        onClick={() => handleEscalate(item.id)}
                       >
                         <Gavel className="mr-1 h-3.5 w-3.5 text-warning" />
                         Escalate
@@ -551,28 +838,10 @@ function HumanReviewPage() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => toast("Additional evidence requested")}
+                        onClick={() => updateStatus(item.id, "pending")}
                       >
-                        <FileSearch className="mr-1 h-3.5 w-3.5" />
-                        Request evidence
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() =>
-                          setActiveNoteId(
-                            activeNoteId === item.id ? null : item.id,
-                          )
-                        }
-                      >
-                        <Pencil className="mr-1 h-3.5 w-3.5" />
-                        Add note
-                      </Button>
-                      <Button size="sm" variant="ghost" asChild>
-                        <Link to="/app/explanations">
-                          <ArrowLeftRight className="mr-1 h-3.5 w-3.5" />
-                          Return to AI
-                        </Link>
+                        <X className="mr-1 h-3.5 w-3.5 text-destructive" />
+                        Reject
                       </Button>
                     </>
                   ) : (
@@ -584,65 +853,27 @@ function HumanReviewPage() {
                       Reset to pending
                     </Button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setExpandedId(expandedId === item.id ? null : item.id)
-                    }
-                    className="ml-auto flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    {expandedId === item.id ? (
-                      <>
-                        Hide notes <ChevronUp className="h-3.5 w-3.5" />
-                      </>
-                    ) : (
-                      <>
-                        Show notes <ChevronDown className="h-3.5 w-3.5" />
-                      </>
-                    )}
-                  </button>
+                  {justifications[item.id] && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedId(expandedId === item.id ? null : item.id)
+                      }
+                      className="ml-auto flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      {expandedId === item.id ? (
+                        <>
+                          Hide justification <ChevronUp className="h-3.5 w-3.5" />
+                        </>
+                      ) : (
+                        <>
+                          Show justification <ChevronDown className="h-3.5 w-3.5" />
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
               )}
-
-              {/* Add note form */}
-              <AnimatePresence>
-                {activeNoteId === item.id && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <Textarea
-                      value={notes[item.id] ?? ""}
-                      onChange={(e) =>
-                        setNotes((prev) => ({
-                          ...prev,
-                          [item.id]: e.target.value,
-                        }))
-                      }
-                      placeholder="Add your reviewer notes, decisions, or follow-up actions…"
-                      className="mt-3 min-h-[80px]"
-                    />
-                    <div className="mt-2 flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="hero"
-                        onClick={() => handleSaveNote(item.id)}
-                      >
-                        Save note
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setActiveNoteId(null)}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </motion.div>
           );
         })}
@@ -668,13 +899,33 @@ function HumanReviewPage() {
 
 function ReviewStatusBadge({ status }: { status: ReviewStatus }) {
   const map = {
-    pending: { label: "Pending review", className: "bg-muted text-muted-foreground" },
+    pending: { label: "Pending", className: "bg-muted text-muted-foreground" },
+    in_progress: { label: "In progress", className: "bg-teal/10 text-teal" },
+    draft_saved: { label: "Draft saved", className: "bg-info/10 text-info" },
     approved: { label: "Approved", className: "bg-success/10 text-success" },
-    needs_revision: { label: "Needs revision", className: "bg-teal/10 text-teal" },
     escalated: { label: "Escalated", className: "bg-warning/10 text-warning" },
-    rejected: { label: "Rejected", className: "bg-destructive/10 text-destructive" },
+    completed: { label: "Completed", className: "bg-success/10 text-success" },
   } as const;
   const m = map[status];
+  return (
+    <span
+      className={cn(
+        "rounded-full px-2 py-0.5 text-[10px] font-medium",
+        m.className,
+      )}
+    >
+      {m.label}
+    </span>
+  );
+}
+
+function RiskBadge({ level }: { level: RiskLevel }) {
+  const map = {
+    high: { label: "High", className: "bg-destructive/10 text-destructive" },
+    medium: { label: "Medium", className: "bg-warning/10 text-warning" },
+    low: { label: "Low", className: "bg-success/10 text-success" },
+  } as const;
+  const m = map[level];
   return (
     <span
       className={cn(

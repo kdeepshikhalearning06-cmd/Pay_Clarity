@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Link } from "@tanstack/react-router";
 import {
   Sheet,
   SheetContent,
@@ -7,7 +8,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Download, FileSpreadsheet, Copy, Archive, ShieldCheck, Bot, Workflow, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle2, Clock, FileText } from "lucide-react";
+import { Download, FileSpreadsheet, Copy, Archive, ShieldCheck, Bot, Workflow, TriangleAlert as AlertTriangle, CircleCheck as CheckCircle2, Clock, FileText, ClipboardCheck, ArrowRight } from "lucide-react";
 import { motion } from "motion/react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -311,6 +312,20 @@ export function ReportDetailsDrawer({ report, open, onOpenChange, onArchive }: P
                 Awaiting sign-off from Legal
               </li>
             </ol>
+          </section>
+
+          {/* Human Review access */}
+          <section>
+            <Link
+              to="/app/human-review"
+              className="group flex items-center justify-between rounded-xl border border-teal/30 bg-teal/5 p-3 transition-all hover:-translate-y-0.5 hover:border-teal/40"
+            >
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <ClipboardCheck className="h-4 w-4 text-teal" />
+                Review and approve explanations in Human Review
+              </div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-teal" />
+            </Link>
           </section>
         </div>
       </SheetContent>

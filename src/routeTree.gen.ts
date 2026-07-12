@@ -30,6 +30,7 @@ import { Route as AppEmployeesRouteImport } from './routes/app.employees'
 import { Route as AppDataSourcesRouteImport } from './routes/app.data-sources'
 import { Route as AppCopilotRouteImport } from './routes/app.copilot'
 import { Route as AppComplianceRouteImport } from './routes/app.compliance'
+import { Route as AppCompanyProfileRouteImport } from './routes/app.company-profile'
 import { Route as AppAuditRouteImport } from './routes/app.audit'
 import { Route as AppAssessmentsRouteImport } from './routes/app.assessments'
 import { Route as AppReportsSetupRouteImport } from './routes/app.reports.setup'
@@ -140,6 +141,11 @@ const AppComplianceRoute = AppComplianceRouteImport.update({
   path: '/compliance',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCompanyProfileRoute = AppCompanyProfileRouteImport.update({
+  id: '/company-profile',
+  path: '/company-profile',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppAuditRoute = AppAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
@@ -171,6 +177,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/app/assessments': typeof AppAssessmentsRoute
   '/app/audit': typeof AppAuditRoute
+  '/app/company-profile': typeof AppCompanyProfileRoute
   '/app/compliance': typeof AppComplianceRouteWithChildren
   '/app/copilot': typeof AppCopilotRoute
   '/app/data-sources': typeof AppDataSourcesRoute
@@ -197,6 +204,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/app/assessments': typeof AppAssessmentsRoute
   '/app/audit': typeof AppAuditRoute
+  '/app/company-profile': typeof AppCompanyProfileRoute
   '/app/compliance': typeof AppComplianceRouteWithChildren
   '/app/copilot': typeof AppCopilotRoute
   '/app/data-sources': typeof AppDataSourcesRoute
@@ -225,6 +233,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/app/assessments': typeof AppAssessmentsRoute
   '/app/audit': typeof AppAuditRoute
+  '/app/company-profile': typeof AppCompanyProfileRoute
   '/app/compliance': typeof AppComplianceRouteWithChildren
   '/app/copilot': typeof AppCopilotRoute
   '/app/data-sources': typeof AppDataSourcesRoute
@@ -254,6 +263,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/app/assessments'
     | '/app/audit'
+    | '/app/company-profile'
     | '/app/compliance'
     | '/app/copilot'
     | '/app/data-sources'
@@ -280,6 +290,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/app/assessments'
     | '/app/audit'
+    | '/app/company-profile'
     | '/app/compliance'
     | '/app/copilot'
     | '/app/data-sources'
@@ -307,6 +318,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/app/assessments'
     | '/app/audit'
+    | '/app/company-profile'
     | '/app/compliance'
     | '/app/copilot'
     | '/app/data-sources'
@@ -484,6 +496,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppComplianceRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/company-profile': {
+      id: '/app/company-profile'
+      path: '/company-profile'
+      fullPath: '/app/company-profile'
+      preLoaderRoute: typeof AppCompanyProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/audit': {
       id: '/app/audit'
       path: '/audit'
@@ -542,6 +561,7 @@ const AppReportsRouteWithChildren = AppReportsRoute._addFileChildren(
 interface AppRouteChildren {
   AppAssessmentsRoute: typeof AppAssessmentsRoute
   AppAuditRoute: typeof AppAuditRoute
+  AppCompanyProfileRoute: typeof AppCompanyProfileRoute
   AppComplianceRoute: typeof AppComplianceRouteWithChildren
   AppCopilotRoute: typeof AppCopilotRoute
   AppDataSourcesRoute: typeof AppDataSourcesRoute
@@ -562,6 +582,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAssessmentsRoute: AppAssessmentsRoute,
   AppAuditRoute: AppAuditRoute,
+  AppCompanyProfileRoute: AppCompanyProfileRoute,
   AppComplianceRoute: AppComplianceRouteWithChildren,
   AppCopilotRoute: AppCopilotRoute,
   AppDataSourcesRoute: AppDataSourcesRoute,

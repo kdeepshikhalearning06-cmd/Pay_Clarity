@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
-import { Scale, Search, ChevronRight, CalendarClock, Users, Percent, Gavel, FileText, ShieldCheck, TriangleAlert as AlertTriangle, Clock, CircleCheck as CheckCircle2, Building2 } from "lucide-react";
+import { Scale, Search, ChevronRight, CalendarClock, Users, Percent, Gavel, FileText, ShieldCheck, TriangleAlert as AlertTriangle, Clock, CircleCheck as CheckCircle2, Building2, CircleAlert, Landmark, FolderCheck } from "lucide-react";
 import { PageHeader } from "@/components/app/AppShell";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,6 +12,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { COMPANY } from "@/lib/company-context";
+import { getCountryProfile, type CountryComplianceProfile } from "@/lib/country-profiles";
 
 export const Route = createFileRoute("/app/compliance")({
   head: () => ({
@@ -307,6 +309,8 @@ function ComplianceLibraryPage() {
   const [q, setQ] = useState("");
   const [tagFilter, setTagFilter] = useState("all");
 
+  const profile = getCountryProfile(COMPANY.country);
+
   const filtered = useMemo(
     () =>
       COUNTRIES.filter(
@@ -325,6 +329,9 @@ function ComplianceLibraryPage() {
         title="Compliance library"
         description="Country-specific EU Pay Transparency requirements, thresholds, and obligations"
       />
+
+      {/* Workspace country profile */}
+      {profile && <WorkspaceCountryProfile profile={profile} />}
 
       {/* Intro banner */}
       <motion.div
@@ -477,6 +484,143 @@ function KeyFact({
       <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       <span className="w-16 shrink-0 text-muted-foreground">{label}</span>
       <span className="font-medium text-foreground">{value}</span>
+    </div>
+  );
+}
+
+function WorkspaceCountryProfile({ profile }: { profile: CountryComplianceProfile }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mb-6 rounded-2xl border border-teal/40 bg-card p-5 shadow-[var(--shadow-card)]"
+    >
+      <div className="flex items-center gap-2">
+        <div className="grid h-8 w-8 place-items-center rounded-lg bg-[image:var(--gradient-teal)] text-teal-foreground">
+          <Building2 className="h-4 w-4" />
+        </div>
+        <div>
+          <div className="text-sm font-semibold">
+            Your workspace compliance profile
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {COMPANY.name} operates under {profile.country} pay transparency rules
+          </div>
+        </div>
+        <span className="ml-auto rounded-full bg-teal/10 px-2.5 py-0.5 text-[11px] font-medium text-teal">
+          {profile.implementationStatus}
+        </span>
+      </div>
+
+      {/* Overview facts */}
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <ProfileFact icon={Users} label="Reporting threshold" value={`${profile.reportingThreshold}+ employees`} />
+        <ProfileFact icon={CalendarClock} label="Frequency" value={profile.reportingFrequency} />
+        <ProfileFact icon={Clock} label="Deadline" value={profile.reportingDeadline} />
+        <ProfileFact icon={Scale} label="Joint assessment" value={profile.jointAssessmentThreshold > 0 ? `${profile.jointAssessmentThreshold}% threshold` : "All gaps investigated"} />
+      </div>
+
+      {/* Top risks */}
+      <div className="mt-5">
+        <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <AlertTriangle className="h-3.5 w-3.5 text-warning" /> Top compliance risks
+        </div>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          {profile.topComplianceRisks.map((risk) => (
+            <div
+              key={risk}
+              className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 p-2.5 text-xs text-muted-foreground"
+            >
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+              {risk}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Accepted & risky justifications */}
+      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <div>
+          <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            <CheckCircle2 className="h-3.5 w-3.5 text-success" /> Accepted justifications
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {profile.acceptedJustifications.map((j) => (
+              <span
+                key={j}
+                className="rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-[11px] font-medium text-success"
+              >
+                {j}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+            <CircleAlert className="h-3.5 w-3.5 text-destructive" /> Risky justifications
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {profile.riskyJustifications.map((j) => (
+              <span
+                key={j}
+                className="rounded-full border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-[11px] font-medium text-destructive"
+              >
+                {j}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Filing authority */}
+      <div className="mt-5 flex items-start gap-3 rounded-lg border border-border/60 bg-background p-3">
+        <div className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-info/10 text-info">
+          <Landmark className="h-3.5 w-3.5" />
+        </div>
+        <div>
+          <div className="text-sm font-medium">{profile.filingAuthority}</div>
+          <div className="mt-0.5 text-xs text-muted-foreground">
+            {profile.filingAuthorityNote}
+          </div>
+        </div>
+      </div>
+
+      {/* Evidence to keep */}
+      <div className="mt-5">
+        <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <FolderCheck className="h-3.5 w-3.5 text-teal" /> Evidence to keep
+        </div>
+        <div className="mt-2 grid gap-1.5 sm:grid-cols-2">
+          {profile.evidenceToKeep.map((e) => (
+            <div
+              key={e}
+              className="flex items-start gap-2 text-xs text-muted-foreground"
+            >
+              <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-teal" />
+              {e}
+            </div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function ProfileFact({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof Users;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border/60 bg-background p-3">
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+        <Icon className="h-3 w-3 text-teal" /> {label}
+      </div>
+      <div className="mt-1 text-sm font-medium">{value}</div>
     </div>
   );
 }
