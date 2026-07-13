@@ -14,13 +14,10 @@ export const Route = createFileRoute("/signup")({
   component: SignupPage,
 });
 
-const countries = ["Germany", "Netherlands", "Denmark", "Sweden", "Finland", "France", "Spain"];
-
 function SignupPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
-  const [company, setCompany] = useState("");
-  const [country, setCountry] = useState("Germany");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,7 +25,7 @@ function SignupPage() {
     e.preventDefault();
     setError(null);
     if (!email.includes("@")) return setError("Please enter a valid work email.");
-    if (company.trim().length < 2) return setError("Please enter your company name.");
+    if (password.length < 8) return setError("Password must be at least 8 characters.");
     setLoading(true);
     setTimeout(() => navigate({ to: "/onboarding" }), 700);
   }
@@ -54,33 +51,21 @@ function SignupPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="anna@company.eu"
+              placeholder="you@company.eu"
               className="h-10 rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-teal focus:ring-2 focus:ring-teal/30"
               required
             />
           </div>
           <div className="grid gap-1.5">
-            <label className="text-xs font-medium">Company name</label>
+            <label className="text-xs font-medium">Password</label>
             <input
-              type="text"
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
-              placeholder="Acme GmbH"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 8 characters"
               className="h-10 rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-teal focus:ring-2 focus:ring-teal/30"
               required
             />
-          </div>
-          <div className="grid gap-1.5">
-            <label className="text-xs font-medium">Country</label>
-            <select
-              value={country}
-              onChange={(e) => setCountry(e.target.value)}
-              className="h-10 rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-teal focus:ring-2 focus:ring-teal/30"
-            >
-              {countries.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
           </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
           <Button type="submit" variant="hero" size="lg" disabled={loading}>

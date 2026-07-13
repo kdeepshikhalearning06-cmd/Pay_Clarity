@@ -20,6 +20,9 @@ import { Route as AppValidateRouteImport } from './routes/app.validate'
 import { Route as AppSettingsRouteImport } from './routes/app.settings'
 import { Route as AppReviewRouteImport } from './routes/app.review'
 import { Route as AppReportsRouteImport } from './routes/app.reports'
+import { Route as AppProfileRouteImport } from './routes/app.profile'
+import { Route as AppPreferencesRouteImport } from './routes/app.preferences'
+import { Route as AppNotificationsRouteImport } from './routes/app.notifications'
 import { Route as AppHumanReviewRouteImport } from './routes/app.human-review'
 import { Route as AppGroupingRouteImport } from './routes/app.grouping'
 import { Route as AppGenerateReportRouteImport } from './routes/app.generate-report'
@@ -89,6 +92,21 @@ const AppReviewRoute = AppReviewRouteImport.update({
 const AppReportsRoute = AppReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPreferencesRoute = AppPreferencesRouteImport.update({
+  id: '/preferences',
+  path: '/preferences',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNotificationsRoute = AppNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => AppRoute,
 } as any)
 const AppHumanReviewRoute = AppHumanReviewRouteImport.update({
@@ -188,6 +206,9 @@ export interface FileRoutesByFullPath {
   '/app/generate-report': typeof AppGenerateReportRoute
   '/app/grouping': typeof AppGroupingRoute
   '/app/human-review': typeof AppHumanReviewRoute
+  '/app/notifications': typeof AppNotificationsRoute
+  '/app/preferences': typeof AppPreferencesRoute
+  '/app/profile': typeof AppProfileRoute
   '/app/reports': typeof AppReportsRouteWithChildren
   '/app/review': typeof AppReviewRoute
   '/app/settings': typeof AppSettingsRoute
@@ -215,6 +236,9 @@ export interface FileRoutesByTo {
   '/app/generate-report': typeof AppGenerateReportRoute
   '/app/grouping': typeof AppGroupingRoute
   '/app/human-review': typeof AppHumanReviewRoute
+  '/app/notifications': typeof AppNotificationsRoute
+  '/app/preferences': typeof AppPreferencesRoute
+  '/app/profile': typeof AppProfileRoute
   '/app/reports': typeof AppReportsRouteWithChildren
   '/app/review': typeof AppReviewRoute
   '/app/settings': typeof AppSettingsRoute
@@ -244,6 +268,9 @@ export interface FileRoutesById {
   '/app/generate-report': typeof AppGenerateReportRoute
   '/app/grouping': typeof AppGroupingRoute
   '/app/human-review': typeof AppHumanReviewRoute
+  '/app/notifications': typeof AppNotificationsRoute
+  '/app/preferences': typeof AppPreferencesRoute
+  '/app/profile': typeof AppProfileRoute
   '/app/reports': typeof AppReportsRouteWithChildren
   '/app/review': typeof AppReviewRoute
   '/app/settings': typeof AppSettingsRoute
@@ -274,6 +301,9 @@ export interface FileRouteTypes {
     | '/app/generate-report'
     | '/app/grouping'
     | '/app/human-review'
+    | '/app/notifications'
+    | '/app/preferences'
+    | '/app/profile'
     | '/app/reports'
     | '/app/review'
     | '/app/settings'
@@ -301,6 +331,9 @@ export interface FileRouteTypes {
     | '/app/generate-report'
     | '/app/grouping'
     | '/app/human-review'
+    | '/app/notifications'
+    | '/app/preferences'
+    | '/app/profile'
     | '/app/reports'
     | '/app/review'
     | '/app/settings'
@@ -329,6 +362,9 @@ export interface FileRouteTypes {
     | '/app/generate-report'
     | '/app/grouping'
     | '/app/human-review'
+    | '/app/notifications'
+    | '/app/preferences'
+    | '/app/profile'
     | '/app/reports'
     | '/app/review'
     | '/app/settings'
@@ -424,6 +460,27 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/app/reports'
       preLoaderRoute: typeof AppReportsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/profile': {
+      id: '/app/profile'
+      path: '/profile'
+      fullPath: '/app/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/preferences': {
+      id: '/app/preferences'
+      path: '/preferences'
+      fullPath: '/app/preferences'
+      preLoaderRoute: typeof AppPreferencesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/notifications': {
+      id: '/app/notifications'
+      path: '/notifications'
+      fullPath: '/app/notifications'
+      preLoaderRoute: typeof AppNotificationsRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/human-review': {
@@ -572,6 +629,9 @@ interface AppRouteChildren {
   AppGenerateReportRoute: typeof AppGenerateReportRoute
   AppGroupingRoute: typeof AppGroupingRoute
   AppHumanReviewRoute: typeof AppHumanReviewRoute
+  AppNotificationsRoute: typeof AppNotificationsRoute
+  AppPreferencesRoute: typeof AppPreferencesRoute
+  AppProfileRoute: typeof AppProfileRoute
   AppReportsRoute: typeof AppReportsRouteWithChildren
   AppReviewRoute: typeof AppReviewRoute
   AppSettingsRoute: typeof AppSettingsRoute
@@ -593,6 +653,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppGenerateReportRoute: AppGenerateReportRoute,
   AppGroupingRoute: AppGroupingRoute,
   AppHumanReviewRoute: AppHumanReviewRoute,
+  AppNotificationsRoute: AppNotificationsRoute,
+  AppPreferencesRoute: AppPreferencesRoute,
+  AppProfileRoute: AppProfileRoute,
   AppReportsRoute: AppReportsRouteWithChildren,
   AppReviewRoute: AppReviewRoute,
   AppSettingsRoute: AppSettingsRoute,

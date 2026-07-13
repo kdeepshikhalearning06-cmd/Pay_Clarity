@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { motion, AnimatePresence } from "motion/react";
+import { motion } from "motion/react";
 import {
   ClipboardCheck,
   ArrowLeft,
@@ -8,22 +8,19 @@ import {
   Check,
   X,
   Pencil,
-  Flag,
   Gavel,
-  FileSearch,
   Clock,
   User,
   Bot,
-  CircleAlert as AlertCircle,
   CircleCheck as CheckCircle2,
   TriangleAlert as AlertTriangle,
-  ChevronDown,
-  ChevronUp,
   Save,
   CircleDot,
   ShieldCheck,
   Scale,
   FolderCheck,
+  Percent,
+  Users,
 } from "lucide-react";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
@@ -35,6 +32,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import { WorkflowStrip } from "@/components/app/WorkflowStrip";
 import { ComplianceAlert } from "@/components/app/ComplianceAlert";
 import { useDemoMode, useUploadedFiles } from "@/lib/demo-store";
@@ -167,7 +171,6 @@ function HumanReviewPage() {
   const [reviewers, setReviewers] = useState<Record<string, string>>({});
   const [statusFilter, setStatusFilter] = useState("all");
   const [reviewerFilter, setReviewerFilter] = useState("all");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const profile = getCountryProfile(COMPANY.country);
 
@@ -199,6 +202,8 @@ function HumanReviewPage() {
     [statuses, reviewers, statusFilter, reviewerFilter],
   );
 
+  const activeItem = REVIEW_ITEMS.find((r) => r.id === activeId) ?? null;
+
   const updateStatus = (id: string, status: ReviewStatus) => {
     setStatuses((prev) => ({ ...prev, [id]: status }));
     const labels: Record<ReviewStatus, string> = {
@@ -222,6 +227,7 @@ function HumanReviewPage() {
       return;
     }
     updateStatus(id, "completed");
+    setActiveId(null);
   };
 
   const handleApproveContinue = (id: string) => {
@@ -231,6 +237,19 @@ function HumanReviewPage() {
 
   const handleEscalate = (id: string) => {
     updateStatus(id, "escalated");
+    setActiveId(null);
+  };
+
+  const handleReject = (id: string) => {
+    updateStatus(id, "pending");
+    setActiveId(null);
+  };
+
+  const openDrawer = (id: string) => {
+    setActiveId(id);
+    if (statuses[id] === "pending" || !statuses[id]) {
+      updateStatus(id, "in_progress");
+    }
   };
 
   if (!hasData) {
@@ -413,79 +432,6 @@ function HumanReviewPage() {
         </div>
       </motion.div>
 
-      {/* Review queue table */}
-      <div className="mb-6 rounded-2xl border border-border/60 bg-card shadow-[var(--shadow-card)]">
-        <div className="border-b border-border/60 p-4">
-          <div className="text-sm font-medium">Review queue</div>
-          <div className="text-xs text-muted-foreground">
-            All categories flagged for human review
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 font-medium">Employee group</th>
-                <th className="px-3 py-3 font-medium">Pay gap</th>
-                <th className="px-3 py-3 font-medium">Confidence</th>
-                <th className="px-3 py-3 font-medium">Reviewer</th>
-                <th className="px-3 py-3 font-medium">Risk</th>
-                <th className="px-3 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium" />
-              </tr>
-            </thead>
-            <tbody>
-              {REVIEW_ITEMS.map((item) => {
-                const status = statuses[item.id] ?? "pending";
-                const reviewer = reviewers[item.id] ?? item.reviewer;
-                return (
-                  <tr
-                    key={item.id}
-                    className="border-t border-border/60 transition-colors hover:bg-muted/30"
-                  >
-                    <td className="px-4 py-3 font-medium">{item.category}</td>
-                    <td className="px-3 py-3">
-                      <span
-                        className={cn(
-                          "font-display font-semibold tabular-nums",
-                          item.gapPct >= 5 ? "text-warning" : "text-success",
-                        )}
-                      >
-                        {item.gapPct.toFixed(1)}%
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 tabular-nums text-muted-foreground">
-                      {item.confidence}%
-                    </td>
-                    <td className="px-3 py-3 text-muted-foreground">{reviewer}</td>
-                    <td className="px-3 py-3">
-                      <RiskBadge level={item.riskLevel} />
-                    </td>
-                    <td className="px-3 py-3">
-                      <ReviewStatusBadge status={status} />
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Button
-                        size="sm"
-                        variant={activeId === item.id ? "hero" : "ghost"}
-                        onClick={() => {
-                          setActiveId(activeId === item.id ? null : item.id);
-                          if (statuses[item.id] === "pending") {
-                            updateStatus(item.id, "in_progress");
-                          }
-                        }}
-                      >
-                        {activeId === item.id ? "Reviewing" : "Review"}
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
       {/* Filters */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -520,363 +466,79 @@ function HumanReviewPage() {
         </div>
       </div>
 
-      {/* Review cards */}
-      <div className="space-y-4">
-        {filteredItems.map((item, i) => {
-          const status = statuses[item.id] ?? "pending";
-          const reviewer = reviewers[item.id] ?? item.reviewer;
-          const isActive = activeId === item.id;
-          return (
-            <motion.div
-              key={item.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.04 }}
-              className={cn(
-                "rounded-2xl border bg-card p-5 shadow-[var(--shadow-card)] transition-all",
-                status === "approved" && "border-success/30",
-                status === "completed" && "border-success/30",
-                status === "escalated" && "border-warning/30",
-                status === "draft_saved" && "border-teal/40",
-                status === "in_progress" && "border-teal/40",
-                status === "pending" && "border-border/60",
-              )}
-            >
-              {/* Header row */}
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-display text-sm font-semibold">
-                      {item.category}
-                    </h3>
-                    <span
-                      className={cn(
-                        "rounded-full px-2 py-0.5 text-[10px] font-medium",
-                        item.gapPct >= 5
-                          ? "bg-warning/10 text-warning"
-                          : "bg-success/10 text-success",
-                      )}
-                    >
-                      {item.gapPct.toFixed(1)}% gap
-                    </span>
-                    <RiskBadge level={item.riskLevel} />
-                    <ReviewStatusBadge status={status} />
-                  </div>
-                  <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <User className="h-3 w-3" />
-                      {reviewer}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {formatTimestamp(item.lastUpdated)}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Bot className="h-3 w-3" />
-                      {item.confidence}% confidence
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* AI Recommendation Card */}
-              <div className="mt-4 rounded-xl border border-teal/30 bg-teal/5 p-4">
-                <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  <Bot className="h-3.5 w-3.5 text-teal" /> AI recommendation
-                </div>
-                <div className="mt-2 flex items-start gap-2">
-                  <Bot className="mt-0.5 h-4 w-4 shrink-0 text-teal" />
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    {item.draft}
-                  </p>
-                </div>
-                <div className="mt-3 flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                      Confidence:
-                    </span>
-                    <span
-                      className={cn(
-                        "font-display text-sm font-bold tabular-nums",
-                        item.confidence >= 75
-                          ? "text-success"
-                          : item.confidence >= 60
-                            ? "text-teal"
-                            : "text-warning",
-                      )}
-                    >
-                      {item.confidence}%
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                      Risk:
-                    </span>
-                    <RiskBadge level={item.riskLevel} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Objective factors */}
-              <div className="mt-3">
-                <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                  Objective factors
-                </div>
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {item.factors.map((f) => {
-                    const isAccepted =
-                      profile?.acceptedJustifications.some((j) =>
-                        f.toLowerCase().includes(j.toLowerCase().split(" ")[0]),
-                      );
-                    return (
+      {/* Review queue table */}
+      <div className="mb-6 rounded-2xl border border-border/60 bg-card shadow-[var(--shadow-card)]">
+        <div className="border-b border-border/60 p-4">
+          <div className="text-sm font-medium">Review queue</div>
+          <div className="text-xs text-muted-foreground">
+            Click any row to open the review drawer
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3 font-medium">Employee group</th>
+                <th className="px-3 py-3 font-medium">Pay gap</th>
+                <th className="px-3 py-3 font-medium">Confidence</th>
+                <th className="px-3 py-3 font-medium">Reviewer</th>
+                <th className="px-3 py-3 font-medium">Risk</th>
+                <th className="px-3 py-3 font-medium">Status</th>
+                <th className="px-4 py-3 font-medium" />
+              </tr>
+            </thead>
+            <tbody>
+              {filteredItems.map((item, i) => {
+                const status = statuses[item.id] ?? "pending";
+                const reviewer = reviewers[item.id] ?? item.reviewer;
+                return (
+                  <motion.tr
+                    key={item.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: Math.min(i * 0.03, 0.3) }}
+                    onClick={() => openDrawer(item.id)}
+                    className="cursor-pointer border-t border-border/60 transition-colors hover:bg-muted/30"
+                  >
+                    <td className="px-4 py-3 font-medium">{item.category}</td>
+                    <td className="px-3 py-3">
                       <span
-                        key={f}
                         className={cn(
-                          "rounded-md border px-2 py-0.5 text-[11px]",
-                          isAccepted
-                            ? "border-success/30 bg-success/10 text-success"
-                            : "border-border/60 bg-muted/40 text-muted-foreground",
+                          "font-display font-semibold tabular-nums",
+                          item.gapPct >= 5 ? "text-warning" : "text-success",
                         )}
                       >
-                        {isAccepted && (
-                          <CheckCircle2 className="mr-0.5 inline h-2.5 w-2.5" />
-                        )}
-                        {f}
+                        {item.gapPct.toFixed(1)}%
                       </span>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Human Decision Panel (active review) */}
-              <AnimatePresence>
-                {isActive && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="mt-4 rounded-xl border border-border/60 bg-background p-4">
-                      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                        <Pencil className="h-3.5 w-3.5 text-teal" /> Final human justification
-                      </div>
-                      <Textarea
-                        value={justifications[item.id] ?? ""}
-                        onChange={(e) =>
-                          setJustifications((prev) => ({
-                            ...prev,
-                            [item.id]: e.target.value,
-                          }))
-                        }
-                        placeholder="Enter your final justification. Example: The pay difference is justified by two additional years of experience and team leadership responsibilities."
-                        className="mt-2 min-h-[100px]"
-                      />
-
-                      {/* Decision controls */}
-                      <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleSaveDraft(item.id)}
-                        >
-                          <Save className="mr-1 h-3.5 w-3.5" />
-                          Save draft
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="hero"
-                          onClick={() => handleApproveContinue(item.id)}
-                        >
-                          <Check className="mr-1 h-3.5 w-3.5" />
-                          Approve & continue
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleFinalise(item.id)}
-                        >
-                          <ShieldCheck className="mr-1 h-3.5 w-3.5" />
-                          Finalise review
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleEscalate(item.id)}
-                        >
-                          <Gavel className="mr-1 h-3.5 w-3.5 text-warning" />
-                          Escalate
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => updateStatus(item.id, "pending")}
-                        >
-                          <X className="mr-1 h-3.5 w-3.5 text-destructive" />
-                          Reject
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Review timeline */}
-                    <div className="mt-4 rounded-xl border border-border/60 bg-background p-4">
-                      <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                        <Clock className="h-3.5 w-3.5 text-teal" /> Review timeline
-                      </div>
-                      <ol className="mt-3 space-y-2">
-                        {STATUS_FLOW.map((s, idx) => {
-                          const reached =
-                            (idx === 0) ||
-                            (idx === 1 && status !== "pending") ||
-                            (idx === 2 &&
-                              (status === "approved" ||
-                                status === "completed" ||
-                                status === "draft_saved")) ||
-                            (idx === 3 && (status === "approved" || status === "completed"));
-                          return (
-                            <li
-                              key={s.label}
-                              className="flex items-start gap-3"
-                            >
-                              <div className="flex flex-col items-center">
-                                <div
-                                  className={cn(
-                                    "grid h-6 w-6 place-items-center rounded-full text-[10px]",
-                                    reached
-                                      ? "bg-teal/10 text-teal"
-                                      : "bg-muted text-muted-foreground",
-                                  )}
-                                >
-                                  <s.icon className="h-3 w-3" />
-                                </div>
-                                {idx < STATUS_FLOW.length - 1 && (
-                                  <div className="my-0.5 h-4 w-px bg-border/60" />
-                                )}
-                              </div>
-                              <div>
-                                <div
-                                  className={cn(
-                                    "text-xs font-medium",
-                                    reached ? "text-foreground" : "text-muted-foreground",
-                                  )}
-                                >
-                                  {s.label}
-                                </div>
-                                <div className="text-[11px] text-muted-foreground">
-                                  {s.description}
-                                </div>
-                              </div>
-                            </li>
-                          );
-                        })}
-                      </ol>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Expandable saved justification */}
-              <AnimatePresence>
-                {expandedId === item.id && !isActive && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="mt-4 rounded-lg border border-border/60 bg-background p-3">
-                      <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                        Final justification
-                      </div>
-                      {justifications[item.id] ? (
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          {justifications[item.id]}
-                        </p>
-                      ) : (
-                        <p className="mt-2 text-xs text-muted-foreground italic">
-                          No justification recorded yet.
-                        </p>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* Quick actions (when not actively reviewing) */}
-              {!isActive && (
-                <div className="mt-4 flex flex-wrap items-center gap-1.5">
-                  {status === "pending" || status === "draft_saved" || status === "in_progress" ? (
-                    <>
+                    </td>
+                    <td className="px-3 py-3 tabular-nums text-muted-foreground">
+                      {item.confidence}%
+                    </td>
+                    <td className="px-3 py-3 text-muted-foreground">{reviewer}</td>
+                    <td className="px-3 py-3">
+                      <RiskBadge level={item.riskLevel} />
+                    </td>
+                    <td className="px-3 py-3">
+                      <ReviewStatusBadge status={status} />
+                    </td>
+                    <td className="px-4 py-3 text-right">
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => {
-                          setActiveId(item.id);
-                          if (status === "pending") updateStatus(item.id, "in_progress");
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDrawer(item.id);
                         }}
                       >
-                        <Pencil className="mr-1 h-3.5 w-3.5" />
                         Review
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleApproveContinue(item.id)}
-                      >
-                        <Check className="mr-1 h-3.5 w-3.5 text-success" />
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleEscalate(item.id)}
-                      >
-                        <Gavel className="mr-1 h-3.5 w-3.5 text-warning" />
-                        Escalate
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => updateStatus(item.id, "pending")}
-                      >
-                        <X className="mr-1 h-3.5 w-3.5 text-destructive" />
-                        Reject
-                      </Button>
-                    </>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => updateStatus(item.id, "pending")}
-                    >
-                      Reset to pending
-                    </Button>
-                  )}
-                  {justifications[item.id] && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setExpandedId(expandedId === item.id ? null : item.id)
-                      }
-                      className="ml-auto flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      {expandedId === item.id ? (
-                        <>
-                          Hide justification <ChevronUp className="h-3.5 w-3.5" />
-                        </>
-                      ) : (
-                        <>
-                          Show justification <ChevronDown className="h-3.5 w-3.5" />
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
-              )}
-            </motion.div>
-          );
-        })}
+                    </td>
+                  </motion.tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Bottom navigation */}
@@ -893,7 +555,289 @@ function HumanReviewPage() {
           </Link>
         </Button>
       </div>
+
+      {/* Review Drawer */}
+      <ReviewDrawer
+        item={activeItem}
+        open={!!activeItem}
+        onOpenChange={(open) => {
+          if (!open) setActiveId(null);
+        }}
+        status={activeItem ? statuses[activeItem.id] ?? "pending" : "pending"}
+        justification={activeItem ? justifications[activeItem.id] ?? "" : ""}
+        onJustificationChange={(val) =>
+          activeItem && setJustifications((prev) => ({ ...prev, [activeItem.id]: val }))
+        }
+        reviewer={activeItem ? reviewers[activeItem.id] ?? activeItem.reviewer : "Unassigned"}
+        onReviewerChange={(val) =>
+          activeItem && setReviewers((prev) => ({ ...prev, [activeItem.id]: val }))
+        }
+        countryProfile={profile}
+        onSaveDraft={() => activeItem && handleSaveDraft(activeItem.id)}
+        onApprove={() => activeItem && handleApproveContinue(activeItem.id)}
+        onFinalise={() => activeItem && handleFinalise(activeItem.id)}
+        onEscalate={() => activeItem && handleEscalate(activeItem.id)}
+        onReject={() => activeItem && handleReject(activeItem.id)}
+      />
     </div>
+  );
+}
+
+function ReviewDrawer({
+  item,
+  open,
+  onOpenChange,
+  status,
+  justification,
+  onJustificationChange,
+  reviewer,
+  onReviewerChange,
+  countryProfile,
+  onSaveDraft,
+  onApprove,
+  onFinalise,
+  onEscalate,
+  onReject,
+}: {
+  item: ReviewItem | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  status: ReviewStatus;
+  justification: string;
+  onJustificationChange: (val: string) => void;
+  reviewer: string;
+  onReviewerChange: (val: string) => void;
+  countryProfile: ReturnType<typeof getCountryProfile>;
+  onSaveDraft: () => void;
+  onApprove: () => void;
+  onFinalise: () => void;
+  onEscalate: () => void;
+  onReject: () => void;
+}) {
+  if (!item) return null;
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-[560px]">
+        <SheetHeader>
+          <div className="flex items-center gap-2">
+            <SheetTitle className="text-lg">{item.category}</SheetTitle>
+            <span
+              className={cn(
+                "rounded-full px-2 py-0.5 text-[10px] font-medium",
+                item.gapPct >= 5
+                  ? "bg-warning/10 text-warning"
+                  : "bg-success/10 text-success",
+              )}
+            >
+              {item.gapPct.toFixed(1)}% gap
+            </span>
+            <RiskBadge level={item.riskLevel} />
+            <ReviewStatusBadge status={status} />
+          </div>
+          <SheetDescription>
+            Review and approve, reject, or escalate this AI-generated explanation
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="mt-5 space-y-4">
+          {/* Key metrics */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg border border-border/60 bg-background p-3">
+              <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                <Percent className="h-3 w-3 text-warning" /> Pay gap
+              </div>
+              <div className="mt-1 font-display text-xl font-bold tabular-nums text-warning">
+                {item.gapPct.toFixed(1)}%
+              </div>
+            </div>
+            <div className="rounded-lg border border-border/60 bg-background p-3">
+              <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                <Bot className="h-3 w-3 text-teal" /> Confidence
+              </div>
+              <div
+                className={cn(
+                  "mt-1 font-display text-xl font-bold tabular-nums",
+                  item.confidence >= 75
+                    ? "text-success"
+                    : item.confidence >= 60
+                      ? "text-teal"
+                      : "text-warning",
+                )}
+              >
+                {item.confidence}%
+              </div>
+            </div>
+          </div>
+
+          {/* Reviewer assignment */}
+          <div>
+            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              <User className="h-3.5 w-3.5 text-teal" /> Reviewer
+            </div>
+            <Select value={reviewer} onValueChange={onReviewerChange}>
+              <SelectTrigger className="mt-1.5 h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {REVIEWERS.map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {r}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* AI Explanation */}
+          <div className="rounded-xl border border-teal/30 bg-teal/5 p-4">
+            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              <Bot className="h-3.5 w-3.5 text-teal" /> AI explanation
+            </div>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              {item.draft}
+            </p>
+          </div>
+
+          {/* Objective Factors */}
+          <div>
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Objective factors
+            </div>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {item.factors.map((f) => {
+                const isAccepted = countryProfile?.acceptedJustifications.some((j) =>
+                  f.toLowerCase().includes(j.toLowerCase().split(" ")[0]),
+                );
+                return (
+                  <span
+                    key={f}
+                    className={cn(
+                      "rounded-md border px-2 py-0.5 text-[11px]",
+                      isAccepted
+                        ? "border-success/30 bg-success/10 text-success"
+                        : "border-border/60 bg-muted/40 text-muted-foreground",
+                    )}
+                  >
+                    {isAccepted && (
+                      <CheckCircle2 className="mr-0.5 inline h-2.5 w-2.5" />
+                    )}
+                    {f}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Reviewer Notes */}
+          <div>
+            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              <Pencil className="h-3.5 w-3.5 text-teal" /> Reviewer notes — final human justification
+            </div>
+            <Textarea
+              value={justification}
+              onChange={(e) => onJustificationChange(e.target.value)}
+              placeholder="Enter your final justification. Example: The pay difference is justified by two additional years of experience and team leadership responsibilities."
+              className="mt-1.5 min-h-[100px]"
+            />
+          </div>
+
+          {/* Decision Controls */}
+          <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-4">
+            <Button size="sm" variant="ghost" onClick={onSaveDraft}>
+              <Save className="mr-1 h-3.5 w-3.5" />
+              Save draft
+            </Button>
+            <Button size="sm" variant="hero" onClick={onApprove}>
+              <Check className="mr-1 h-3.5 w-3.5" />
+              Approve
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onFinalise}>
+              <ShieldCheck className="mr-1 h-3.5 w-3.5" />
+              Finalise
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onEscalate}>
+              <Gavel className="mr-1 h-3.5 w-3.5 text-warning" />
+              Escalate
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onReject}>
+              <X className="mr-1 h-3.5 w-3.5 text-destructive" />
+              Reject
+            </Button>
+          </div>
+
+          {/* Timeline */}
+          <div className="rounded-xl border border-border/60 bg-background p-4">
+            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              <Clock className="h-3.5 w-3.5 text-teal" /> Review timeline
+            </div>
+            <ol className="mt-3 space-y-2">
+              {STATUS_FLOW.map((s, idx) => {
+                const reached =
+                  idx === 0 ||
+                  (idx === 1 && status !== "pending") ||
+                  (idx === 2 &&
+                    (status === "approved" ||
+                      status === "completed" ||
+                      status === "draft_saved")) ||
+                  (idx === 3 && (status === "approved" || status === "completed"));
+                return (
+                  <li key={s.label} className="flex items-start gap-3">
+                    <div className="flex flex-col items-center">
+                      <div
+                        className={cn(
+                          "grid h-6 w-6 place-items-center rounded-full text-[10px]",
+                          reached
+                            ? "bg-teal/10 text-teal"
+                            : "bg-muted text-muted-foreground",
+                        )}
+                      >
+                        <s.icon className="h-3 w-3" />
+                      </div>
+                      {idx < STATUS_FLOW.length - 1 && (
+                        <div className="my-0.5 h-4 w-px bg-border/60" />
+                      )}
+                    </div>
+                    <div>
+                      <div
+                        className={cn(
+                          "text-xs font-medium",
+                          reached ? "text-foreground" : "text-muted-foreground",
+                        )}
+                      >
+                        {s.label}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {s.description}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+
+          {/* Country-specific guidance */}
+          {countryProfile && (
+            <div className="rounded-xl border border-info/30 bg-info/5 p-3">
+              <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                <Scale className="h-3.5 w-3.5 text-info" /> {countryProfile.country} guidance
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {countryProfile.acceptedJustifications.map((j) => (
+                  <span
+                    key={j}
+                    className="rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-[10px] font-medium text-success"
+                  >
+                    {j}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 

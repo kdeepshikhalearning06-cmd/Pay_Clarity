@@ -1,10 +1,20 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { motion } from "motion/react";
-import { LayoutDashboard, FileText, Users, Bot, History, Settings, Sparkles, Bell, Search, LogOut, ChevronRight, Database, Scale, ChartBar as BarChart3, TrendingUp, Building2 } from "lucide-react";
+import { LayoutDashboard, FileText, Users, Bot, History, Settings, Sparkles, Bell, Search, LogOut, ChevronRight, Database, Scale, ChartBar as BarChart3, TrendingUp, Building2, User, Circle as HelpCircle, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useDemoMode, disableDemo } from "@/lib/demo-store";
+import { CURRENT_USER } from "@/lib/user-context";
+import { useNotifications } from "@/lib/notifications-store";
 import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type NavItem = {
   to: string;
@@ -35,6 +45,7 @@ export function AppShell() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const crumbs = buildCrumbs(pathname);
   const [demo] = useDemoMode();
+  const { unreadCount } = useNotifications();
 
   return (
     <div className="flex min-h-screen bg-muted/20">
@@ -139,13 +150,70 @@ export function AppShell() {
                 className="h-8 w-64 rounded-md border border-input bg-background pl-8 pr-3 text-xs outline-none focus:border-teal focus:ring-2 focus:ring-teal/30"
               />
             </div>
-            <Button variant="ghost" size="icon" asChild>
-              <Link to="/coming-soon" aria-label="Notifications"><Bell className="h-4 w-4" /></Link>
-            </Button>
-            <Link to="/app/settings" className="flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1 text-xs transition-colors hover:bg-muted">
-              <span className="grid h-6 w-6 place-items-center rounded-full bg-[image:var(--gradient-teal)] text-[10px] font-semibold text-teal-foreground">AN</span>
-              <span className="hidden sm:inline">Anna Novak</span>
-            </Link>
+            <div className="relative">
+              <Button variant="ghost" size="icon" asChild>
+                <Link to="/app/notifications" aria-label="Notifications">
+                  <Bell className="h-4 w-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-destructive px-1 text-[9px] font-bold text-destructive-foreground">
+                      {unreadCount}
+                    </span>
+                  )}
+                </Link>
+              </Button>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1 text-xs transition-colors hover:bg-muted">
+                  <span className="grid h-6 w-6 place-items-center rounded-full bg-[image:var(--gradient-teal)] text-[10px] font-semibold text-teal-foreground">{CURRENT_USER.avatar}</span>
+                  <span className="hidden sm:inline">{CURRENT_USER.name}</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">{CURRENT_USER.name}</span>
+                    <span className="text-xs text-muted-foreground">{CURRENT_USER.email}</span>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/app/profile">
+                    <User className="mr-2 h-4 w-4" /> My profile
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/app/notifications">
+                    <Bell className="mr-2 h-4 w-4" /> Notifications
+                    {unreadCount > 0 && (
+                      <span className="ml-auto rounded-full bg-destructive px-1.5 text-[10px] font-bold text-destructive-foreground">{unreadCount}</span>
+                    )}
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/app/preferences">
+                    <Settings className="mr-2 h-4 w-4" /> Preferences
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link to="/coming-soon">
+                    <HelpCircle className="mr-2 h-4 w-4" /> Help center
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {demo ? (
+                  <DropdownMenuItem onClick={() => { disableDemo(); toast("Exited demo mode — returned to your workspace"); }}>
+                    <LogOut className="mr-2 h-4 w-4" /> Exit demo
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem asChild>
+                    <Link to="/">
+                      <LogOut className="mr-2 h-4 w-4" /> Sign out
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
@@ -183,6 +251,9 @@ function buildCrumbs(pathname: string) {
     "/app/copilot": "AI Copilot",
     "/app/executive": "Executive view",
     "/app/company-profile": "Company profile",
+    "/app/profile": "My profile",
+    "/app/notifications": "Notifications",
+    "/app/preferences": "Preferences",
     "/app/settings": "Settings",
   };
   const crumbs = [{ href: "/app", label: "Workspace" }];

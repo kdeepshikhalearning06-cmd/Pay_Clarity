@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { COMPANY } from "@/lib/company-context";
 import { SUPPORTED_COUNTRIES } from "@/lib/country-profiles";
 import { toast } from "sonner";
+import { useSecurityConfirmation, AccessRestricted, useCanAccess } from "@/components/app/SecurityConfirmation";
 
 export const Route = createFileRoute("/app/settings")({
   head: () => ({
@@ -94,6 +95,9 @@ function SettingsPage() {
   const [inviteRole, setInviteRole] = useState<TeamMember["role"]>("Reviewer");
   const [members, setMembers] = useState<TeamMember[]>(TEAM_MEMBERS);
 
+  const { requestConfirmation, dialog: securityDialog } = useSecurityConfirmation();
+  const access = useCanAccess();
+
   const handleSaveCompany = () => {
     toast.success("Company settings saved");
   };
@@ -120,6 +124,11 @@ function SettingsPage() {
   };
 
   const handleRemoveMember = (id: string) => {
+    const member = members.find((m) => m.id === id);
+    if (member && member.role === "Admin") {
+      requestConfirmation("remove_admin_user");
+      return;
+    }
     setMembers((prev) => prev.filter((m) => m.id !== id));
     toast("Team member removed");
   };
@@ -337,6 +346,7 @@ function SettingsPage() {
         )}
 
         {tab === "team" && (
+          access.canManageUsers ? (
           <div className="space-y-4">
             <Card>
               <CardHeader>
@@ -500,9 +510,13 @@ function SettingsPage() {
               </CardContent>
             </Card>
           </div>
+          ) : (
+            <AccessRestricted message="Only Workspace Admins can manage team members and roles." />
+          )
         )}
 
         {tab === "security" && (
+          access.canManageSecurity ? (
           <div className="space-y-4">
             <Card>
               <CardHeader>
@@ -582,8 +596,13 @@ function SettingsPage() {
               </CardContent>
             </Card>
           </div>
+          ) : (
+            <AccessRestricted message="Only Workspace Admins can access security settings." />
+          )
         )}
       </motion.div>
+
+      {securityDialog}
     </div>
   );
 }
