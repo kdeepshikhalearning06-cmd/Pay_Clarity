@@ -24,6 +24,7 @@ import { Route as AppProfileRouteImport } from './routes/app.profile'
 import { Route as AppPreferencesRouteImport } from './routes/app.preferences'
 import { Route as AppNotificationsRouteImport } from './routes/app.notifications'
 import { Route as AppHumanReviewRouteImport } from './routes/app.human-review'
+import { Route as AppHelpRouteImport } from './routes/app.help'
 import { Route as AppGroupingRouteImport } from './routes/app.grouping'
 import { Route as AppGenerateReportRouteImport } from './routes/app.generate-report'
 import { Route as AppGapAnalysisRouteImport } from './routes/app.gap-analysis'
@@ -112,6 +113,11 @@ const AppNotificationsRoute = AppNotificationsRouteImport.update({
 const AppHumanReviewRoute = AppHumanReviewRouteImport.update({
   id: '/human-review',
   path: '/human-review',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHelpRoute = AppHelpRouteImport.update({
+  id: '/help',
+  path: '/help',
   getParentRoute: () => AppRoute,
 } as any)
 const AppGroupingRoute = AppGroupingRouteImport.update({
@@ -205,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/app/gap-analysis': typeof AppGapAnalysisRoute
   '/app/generate-report': typeof AppGenerateReportRoute
   '/app/grouping': typeof AppGroupingRoute
+  '/app/help': typeof AppHelpRoute
   '/app/human-review': typeof AppHumanReviewRoute
   '/app/notifications': typeof AppNotificationsRoute
   '/app/preferences': typeof AppPreferencesRoute
@@ -235,6 +242,7 @@ export interface FileRoutesByTo {
   '/app/gap-analysis': typeof AppGapAnalysisRoute
   '/app/generate-report': typeof AppGenerateReportRoute
   '/app/grouping': typeof AppGroupingRoute
+  '/app/help': typeof AppHelpRoute
   '/app/human-review': typeof AppHumanReviewRoute
   '/app/notifications': typeof AppNotificationsRoute
   '/app/preferences': typeof AppPreferencesRoute
@@ -267,6 +275,7 @@ export interface FileRoutesById {
   '/app/gap-analysis': typeof AppGapAnalysisRoute
   '/app/generate-report': typeof AppGenerateReportRoute
   '/app/grouping': typeof AppGroupingRoute
+  '/app/help': typeof AppHelpRoute
   '/app/human-review': typeof AppHumanReviewRoute
   '/app/notifications': typeof AppNotificationsRoute
   '/app/preferences': typeof AppPreferencesRoute
@@ -300,6 +309,7 @@ export interface FileRouteTypes {
     | '/app/gap-analysis'
     | '/app/generate-report'
     | '/app/grouping'
+    | '/app/help'
     | '/app/human-review'
     | '/app/notifications'
     | '/app/preferences'
@@ -330,6 +340,7 @@ export interface FileRouteTypes {
     | '/app/gap-analysis'
     | '/app/generate-report'
     | '/app/grouping'
+    | '/app/help'
     | '/app/human-review'
     | '/app/notifications'
     | '/app/preferences'
@@ -361,6 +372,7 @@ export interface FileRouteTypes {
     | '/app/gap-analysis'
     | '/app/generate-report'
     | '/app/grouping'
+    | '/app/help'
     | '/app/human-review'
     | '/app/notifications'
     | '/app/preferences'
@@ -488,6 +500,13 @@ declare module '@tanstack/react-router' {
       path: '/human-review'
       fullPath: '/app/human-review'
       preLoaderRoute: typeof AppHumanReviewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/help': {
+      id: '/app/help'
+      path: '/help'
+      fullPath: '/app/help'
+      preLoaderRoute: typeof AppHelpRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/grouping': {
@@ -628,6 +647,7 @@ interface AppRouteChildren {
   AppGapAnalysisRoute: typeof AppGapAnalysisRoute
   AppGenerateReportRoute: typeof AppGenerateReportRoute
   AppGroupingRoute: typeof AppGroupingRoute
+  AppHelpRoute: typeof AppHelpRoute
   AppHumanReviewRoute: typeof AppHumanReviewRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppPreferencesRoute: typeof AppPreferencesRoute
@@ -652,6 +672,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppGapAnalysisRoute: AppGapAnalysisRoute,
   AppGenerateReportRoute: AppGenerateReportRoute,
   AppGroupingRoute: AppGroupingRoute,
+  AppHelpRoute: AppHelpRoute,
   AppHumanReviewRoute: AppHumanReviewRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppPreferencesRoute: AppPreferencesRoute,

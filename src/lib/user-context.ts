@@ -29,6 +29,18 @@ export const CURRENT_USER: UserProfile = {
   avatar: "AN",
 };
 
+export const DEMO_USER: UserProfile = {
+  id: "demo_u1",
+  name: "Emma Wilson",
+  email: "emma.wilson@acme-demo.de",
+  jobTitle: "Demo HR Director",
+  department: "Human Resources",
+  role: "Workspace Admin",
+  language: "English (UK)",
+  timezone: "Europe/Berlin (CET)",
+  avatar: "EW",
+};
+
 export const ROLE_PERMISSIONS: Record<UserRole, {
   canManageUsers: boolean;
   canManageSecurity: boolean;

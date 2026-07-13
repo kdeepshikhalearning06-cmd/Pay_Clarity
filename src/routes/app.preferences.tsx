@@ -1,18 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
-import {
-  Bell,
-  Mail,
-  CalendarClock,
-  TriangleAlert as AlertTriangle,
-  Users,
-  FileText,
-  Check,
-  Globe,
-  Clock,
-  ArrowRight,
-} from "lucide-react";
+import { Bell, Mail, CalendarClock, TriangleAlert as AlertTriangle, Users, FileText, Check, Globe, Clock, ArrowRight, CirclePlay as PlayCircle, Compass } from "lucide-react";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -32,6 +21,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { CURRENT_USER } from "@/lib/user-context";
+import { startTour } from "@/lib/tour-store";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/preferences")({
@@ -184,6 +174,37 @@ function PreferencesPage() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Product tour */}
+      <Card className="mb-4">
+        <CardHeader>
+          <CardTitle>Product tour</CardTitle>
+          <CardDescription>Restart the interactive walkthrough</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Compass className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <div className="text-sm font-medium">Interactive product tour</div>
+                <div className="text-xs text-muted-foreground">
+                  Walk through the 8 key features of PayClarity in under 2 minutes.
+                </div>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                startTour();
+                toast.success("Product tour started");
+              }}
+            >
+              <PlayCircle className="mr-1 h-3.5 w-3.5" /> Restart tour
+            </Button>
           </div>
         </CardContent>
       </Card>

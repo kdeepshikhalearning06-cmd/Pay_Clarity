@@ -19,6 +19,7 @@ import {
 } from "@/lib/notifications-store";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/app/EmptyState";
 
 export const Route = createFileRoute("/app/notifications")({
   head: () => ({
@@ -130,10 +131,11 @@ function NotificationsPage() {
           ))}
         </AnimatePresence>
         {filtered.length === 0 && (
-          <div className="rounded-2xl border border-border/60 bg-card p-10 text-center shadow-[var(--shadow-card)]">
-            <Bell className="mx-auto h-8 w-8 text-muted-foreground" />
-            <p className="mt-3 text-sm text-muted-foreground">No notifications to show.</p>
-          </div>
+          <EmptyState
+            icon={Bell}
+            title="No notifications"
+            description="You're all caught up. Review assignments, threshold alerts, and deadline reminders will appear here."
+          />
         )}
       </div>
     </div>

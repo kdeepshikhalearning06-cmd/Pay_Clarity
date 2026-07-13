@@ -1,11 +1,12 @@
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { motion } from "motion/react";
-import { LayoutDashboard, FileText, Users, Bot, History, Settings, Sparkles, Bell, Search, LogOut, ChevronRight, Database, Scale, ChartBar as BarChart3, TrendingUp, Building2, User, Circle as HelpCircle, CheckCheck } from "lucide-react";
+import { LayoutDashboard, FileText, Users, Bot, History, Settings, Sparkles, Bell, Search, LogOut, ChevronRight, Database, Scale, ChartBar as BarChart3, TrendingUp, Building2, User, Circle as HelpCircle, CirclePlay as PlayCircle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useDemoMode, disableDemo } from "@/lib/demo-store";
-import { CURRENT_USER } from "@/lib/user-context";
+import { CURRENT_USER, DEMO_USER } from "@/lib/user-context";
 import { useNotifications } from "@/lib/notifications-store";
+import { useTourCompleted, startTour } from "@/lib/tour-store";
 import { toast } from "sonner";
 import {
   DropdownMenu,
@@ -15,28 +16,31 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ProductTour } from "@/components/app/ProductTour";
+import { useEffect } from "react";
 
 type NavItem = {
   to: string;
   label: string;
   icon: typeof LayoutDashboard;
   exact?: boolean;
+  tourId?: string;
 };
 
 const navGroups: { label: string; items: NavItem[] }[] = [
   {
     label: "Workspace",
     items: [
-      { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true },
+      { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true, tourId: "dashboard" },
       { to: "/app/company-profile", label: "Company profile", icon: Building2 },
       { to: "/app/executive", label: "Executive view", icon: BarChart3 },
-      { to: "/app/reports", label: "Reports", icon: FileText },
-      { to: "/app/data-sources", label: "Data sources", icon: Database },
+      { to: "/app/reports", label: "Reports", icon: FileText, tourId: "generate-report" },
+      { to: "/app/data-sources", label: "Data sources", icon: Database, tourId: "data-sources" },
       { to: "/app/employees", label: "Employees", icon: Users },
       { to: "/app/audit", label: "Audit trail", icon: History },
       { to: "/app/assessments", label: "Assessment history", icon: TrendingUp },
-      { to: "/app/compliance", label: "Compliance library", icon: Scale },
-      { to: "/app/copilot", label: "AI Copilot", icon: Bot },
+      { to: "/app/compliance", label: "Compliance library", icon: Scale, tourId: "compliance" },
+      { to: "/app/copilot", label: "AI Copilot", icon: Bot, tourId: "copilot" },
     ],
   },
 ];
@@ -46,9 +50,22 @@ export function AppShell() {
   const crumbs = buildCrumbs(pathname);
   const [demo] = useDemoMode();
   const { unreadCount } = useNotifications();
+  const [tourCompleted] = useTourCompleted();
+
+  const user = demo ? DEMO_USER : CURRENT_USER;
+
+  // Auto-start tour on first visit (not in demo mode)
+  useEffect(() => {
+    if (!tourCompleted && !demo && pathname === "/app") {
+      const timer = setTimeout(() => startTour(), 800);
+      return () => clearTimeout(timer);
+    }
+  }, [tourCompleted, demo, pathname]);
 
   return (
     <div className="flex min-h-screen bg-muted/20">
+      <ProductTour />
+
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-border/60 bg-background lg:flex">
         <Link to="/" className="flex items-center gap-2 border-b border-border/60 px-5 py-4 font-display font-semibold">
           <span className="grid h-7 w-7 place-items-center rounded bg-[image:var(--gradient-primary)] text-primary-foreground shadow-[var(--shadow-glow)]">
@@ -75,6 +92,7 @@ export function AppShell() {
                     <li key={item.to}>
                       <Link
                         to={item.to}
+                        data-tour={item.tourId}
                         className={cn(
                           "group flex items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-colors",
                           active
@@ -100,6 +118,12 @@ export function AppShell() {
         </nav>
 
         <div className="border-t border-border/60 p-3">
+          <Link
+            to="/app/help"
+            className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <HelpCircle className="h-4 w-4" /> Help Center
+          </Link>
           <Link
             to="/app/settings"
             className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -129,6 +153,35 @@ export function AppShell() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
+        {/* Demo banner */}
+        {demo && (
+          <div className="flex items-center gap-2 border-b border-teal/30 bg-teal/5 px-4 py-2 text-xs">
+            <Sparkles className="h-3.5 w-3.5 text-teal" />
+            <span className="text-muted-foreground">
+              <span className="font-medium text-foreground">Using Demo Data</span> — changes do not persist. Explore the full workflow with sample data.
+            </span>
+            <div className="ml-auto flex gap-2">
+              <Button
+                size="sm"
+                variant="hero"
+                asChild
+              >
+                <Link to="/onboarding">Create Real Workspace</Link>
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  disableDemo();
+                  toast("Exited demo mode");
+                }}
+              >
+                <X className="mr-0.5 h-3 w-3" /> Exit Demo
+              </Button>
+            </div>
+          </div>
+        )}
+
         <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border/60 bg-background/80 px-4 backdrop-blur lg:px-6">
           <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
             {crumbs.map((c, i) => (
@@ -150,7 +203,7 @@ export function AppShell() {
                 className="h-8 w-64 rounded-md border border-input bg-background pl-8 pr-3 text-xs outline-none focus:border-teal focus:ring-2 focus:ring-teal/30"
               />
             </div>
-            <div className="relative">
+            <div className="relative" data-tour="notifications">
               <Button variant="ghost" size="icon" asChild>
                 <Link to="/app/notifications" aria-label="Notifications">
                   <Bell className="h-4 w-4" />
@@ -165,15 +218,18 @@ export function AppShell() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1 text-xs transition-colors hover:bg-muted">
-                  <span className="grid h-6 w-6 place-items-center rounded-full bg-[image:var(--gradient-teal)] text-[10px] font-semibold text-teal-foreground">{CURRENT_USER.avatar}</span>
-                  <span className="hidden sm:inline">{CURRENT_USER.name}</span>
+                  <span className="grid h-6 w-6 place-items-center rounded-full bg-[image:var(--gradient-teal)] text-[10px] font-semibold text-teal-foreground">{user.avatar}</span>
+                  <span className="hidden sm:inline">{user.name}</span>
+                  {demo && (
+                    <span className="rounded bg-teal/10 px-1 py-0.5 text-[9px] font-medium uppercase tracking-wider text-teal">Demo</span>
+                  )}
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium">{CURRENT_USER.name}</span>
-                    <span className="text-xs text-muted-foreground">{CURRENT_USER.email}</span>
+                    <span className="text-sm font-medium">{user.name}</span>
+                    <span className="text-xs text-muted-foreground">{user.email}</span>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -196,9 +252,17 @@ export function AppShell() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link to="/coming-soon">
-                    <HelpCircle className="mr-2 h-4 w-4" /> Help center
+                  <Link to="/app/help">
+                    <HelpCircle className="mr-2 h-4 w-4" /> Help Center
                   </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    startTour();
+                    toast.success("Product tour started");
+                  }}
+                >
+                  <PlayCircle className="mr-2 h-4 w-4" /> Restart product tour
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {demo ? (
@@ -255,6 +319,7 @@ function buildCrumbs(pathname: string) {
     "/app/notifications": "Notifications",
     "/app/preferences": "Preferences",
     "/app/settings": "Settings",
+    "/app/help": "Help Center",
   };
   const crumbs = [{ href: "/app", label: "Workspace" }];
   if (pathname !== "/app" && map[pathname]) {

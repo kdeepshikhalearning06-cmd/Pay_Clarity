@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/app/EmptyState";
 
 export const Route = createFileRoute("/app/audit")({
   head: () => ({
@@ -452,9 +453,13 @@ function AuditPage() {
         </div>
 
         {filtered.length === 0 && (
-          <div className="px-6 py-12 text-center text-sm text-muted-foreground">
-            No events match your filters. Try adjusting your search or filters.
-          </div>
+          <EmptyState
+            icon={History}
+            title="No audit events"
+            description="Activity will appear here once assessments begin. All uploads, validations, reviews, approvals, and report generations are recorded for compliance."
+            ctaLabel="View dashboard"
+            ctaTo="/app"
+          />
         )}
       </div>
     </div>

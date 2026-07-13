@@ -13,6 +13,7 @@ import { useDemoMode, enableDemo, useUploadedFiles } from "@/lib/demo-store";
 import { COMPANY } from "@/lib/company-context";
 import { AssessmentContextBanner } from "@/components/app/AssessmentContextBanner";
 import { cn } from "@/lib/utils";
+import { HelpTooltip, HELP_DEFINITIONS } from "@/components/app/HelpTooltip";
 
 export const Route = createFileRoute("/app/")({
   component: Dashboard,

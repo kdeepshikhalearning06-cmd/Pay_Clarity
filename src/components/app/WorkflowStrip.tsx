@@ -10,7 +10,7 @@ const STEPS = [
   { key: "grouping", label: "AI grouping", icon: Workflow, to: "/app/grouping" },
   { key: "gap", label: "Gap analysis", icon: LineChart, to: "/app/gap-analysis" },
   { key: "explain", label: "AI explanations", icon: Bot, to: "/app/explanations" },
-  { key: "human", label: "Human review", icon: ClipboardCheck, to: "/app/human-review" },
+  { key: "human", label: "Human review", icon: ClipboardCheck, to: "/app/human-review", tourId: "human-review" },
   { key: "report", label: "Generate report", icon: FileCheck2, to: "/app/generate-report" },
 ] as const;
 
@@ -19,7 +19,7 @@ export type WorkflowStep = (typeof STEPS)[number]["key"];
 export function WorkflowStrip({ current = "upload" }: { current?: WorkflowStep }) {
   const currentIdx = STEPS.findIndex((s) => s.key === current);
   return (
-    <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-[var(--shadow-card)]">
+    <div data-tour="workflow" className="rounded-2xl border border-border/60 bg-card p-5 shadow-[var(--shadow-card)]">
       <div className="mb-3 flex items-center justify-between">
         <div>
           <div className="font-display text-sm font-semibold">Compliance workflow</div>
@@ -47,6 +47,7 @@ export function WorkflowStrip({ current = "upload" }: { current?: WorkflowStep }
               <li key={s.key} className="flex flex-col items-center text-center">
                 <Link
                   to={s.to}
+                  data-tour={s.tourId}
                   className="group flex flex-col items-center"
                   aria-label={s.label}
                 >
