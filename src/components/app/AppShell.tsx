@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ProductTour } from "@/components/app/ProductTour";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEffect } from "react";
 
 type NavItem = {
@@ -25,22 +26,23 @@ type NavItem = {
   icon: typeof LayoutDashboard;
   exact?: boolean;
   tourId?: string;
+  description?: string;
 };
 
 const navGroups: { label: string; items: NavItem[] }[] = [
   {
     label: "Workspace",
     items: [
-      { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true, tourId: "dashboard" },
-      { to: "/app/company-profile", label: "Company profile", icon: Building2 },
-      { to: "/app/executive", label: "Executive view", icon: BarChart3 },
-      { to: "/app/reports", label: "Reports", icon: FileText, tourId: "generate-report" },
-      { to: "/app/data-sources", label: "Data sources", icon: Database, tourId: "data-sources" },
-      { to: "/app/employees", label: "Employees", icon: Users },
-      { to: "/app/audit", label: "Audit trail", icon: History },
-      { to: "/app/assessments", label: "Assessment history", icon: TrendingUp },
-      { to: "/app/compliance", label: "Compliance library", icon: Scale, tourId: "compliance" },
-      { to: "/app/copilot", label: "AI Copilot", icon: Bot, tourId: "copilot" },
+      { to: "/app", label: "Dashboard", icon: LayoutDashboard, exact: true, tourId: "dashboard", description: "Overview of compliance readiness, risks, and pending actions." },
+      { to: "/app/company-profile", label: "Company profile", icon: Building2, description: "Company details, assessment context, and reporting configuration." },
+      { to: "/app/executive", label: "Executive view", icon: BarChart3, description: "High-level metrics and reporting status for leadership teams." },
+      { to: "/app/reports", label: "Reports", icon: FileText, tourId: "generate-report", description: "Access assessments, submissions, and historical reports." },
+      { to: "/app/data-sources", label: "Data sources", icon: Database, tourId: "data-sources", description: "Upload and manage payroll and employee datasets." },
+      { to: "/app/employees", label: "Employees", icon: Users, description: "Review employee records used in assessments." },
+      { to: "/app/audit", label: "Audit trail", icon: History, description: "Track every AI and human action across the workflow." },
+      { to: "/app/assessments", label: "Assessment history", icon: TrendingUp, description: "Compare previous reporting cycles and trends." },
+      { to: "/app/compliance", label: "Compliance library", icon: Scale, tourId: "compliance", description: "Country-specific legal requirements and implementation guidance." },
+      { to: "/app/copilot", label: "AI Copilot", icon: Bot, tourId: "copilot", description: "Ask questions about risks, deadlines, and compliance obligations." },
     ],
   },
 ];
@@ -90,25 +92,36 @@ export function AppShell() {
                   const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
                   return (
                     <li key={item.to}>
-                      <Link
-                        to={item.to}
-                        data-tour={item.tourId}
-                        className={cn(
-                          "group flex items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-colors",
-                          active
-                            ? "bg-teal/10 text-foreground"
-                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                        )}
-                      >
-                        <item.icon className={cn("h-4 w-4", active && "text-teal")} />
-                        {item.label}
-                        {active && (
-                          <motion.span
-                            layoutId="sidebar-active"
-                            className="ml-auto h-1.5 w-1.5 rounded-full bg-teal"
-                          />
-                        )}
-                      </Link>
+                      <TooltipProvider delayDuration={300}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Link
+                              to={item.to}
+                              data-tour={item.tourId}
+                              className={cn(
+                                "group flex items-center gap-2 rounded-md px-2.5 py-2 text-sm transition-colors",
+                                active
+                                  ? "bg-teal/10 text-foreground"
+                                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                              )}
+                            >
+                              <item.icon className={cn("h-4 w-4", active && "text-teal")} />
+                              {item.label}
+                              {active && (
+                                <motion.span
+                                  layoutId="sidebar-active"
+                                  className="ml-auto h-1.5 w-1.5 rounded-full bg-teal"
+                                />
+                              )}
+                            </Link>
+                          </TooltipTrigger>
+                          {item.description && (
+                            <TooltipContent side="right" className="max-w-[240px] rounded-lg border border-border/60 bg-popover px-3 py-2 text-xs leading-relaxed text-popover-foreground shadow-[var(--shadow-card)]">
+                              {item.description}
+                            </TooltipContent>
+                          )}
+                        </Tooltip>
+                      </TooltipProvider>
                     </li>
                   );
                 })}
@@ -118,18 +131,36 @@ export function AppShell() {
         </nav>
 
         <div className="border-t border-border/60 p-3">
-          <Link
-            to="/app/help"
-            className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <HelpCircle className="h-4 w-4" /> Help Center
-          </Link>
-          <Link
-            to="/app/settings"
-            className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <Settings className="h-4 w-4" /> Settings
-          </Link>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link
+                  to="/app/help"
+                  className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <HelpCircle className="h-4 w-4" /> Help Center
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-[240px] rounded-lg border border-border/60 bg-popover px-3 py-2 text-xs leading-relaxed text-popover-foreground shadow-[var(--shadow-card)]">
+                Guides, FAQs, and walkthroughs for using PayClarity.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link
+                  to="/app/settings"
+                  className="flex items-center gap-2 rounded-md px-2.5 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <Settings className="h-4 w-4" /> Settings
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-[240px] rounded-lg border border-border/60 bg-popover px-3 py-2 text-xs leading-relaxed text-popover-foreground shadow-[var(--shadow-card)]">
+                Configure workspace preferences, users, and security.
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           {demo ? (
             <button
               type="button"

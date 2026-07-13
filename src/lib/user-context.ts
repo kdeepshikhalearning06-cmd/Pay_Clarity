@@ -31,14 +31,14 @@ export const CURRENT_USER: UserProfile = {
 
 export const DEMO_USER: UserProfile = {
   id: "demo_u1",
-  name: "Emma Wilson",
-  email: "emma.wilson@acme-demo.de",
+  name: "Deepshikha Kumari",
+  email: "deepshikha.kumari@acme-demo.de",
   jobTitle: "Demo HR Director",
   department: "Human Resources",
   role: "Workspace Admin",
   language: "English (UK)",
   timezone: "Europe/Berlin (CET)",
-  avatar: "EW",
+  avatar: "DK",
 };
 
 export const ROLE_PERMISSIONS: Record<UserRole, {
