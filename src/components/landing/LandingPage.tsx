@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion, useScroll, useTransform, AnimatePresence } from "motion/react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { enableDemo } from "@/lib/demo-store";
 import { Sparkles, ShieldCheck, Bot, Upload, ChartLine as LineChart, FileCheck as FileCheck2, Users, Workflow, ChevronDown, ArrowRight, Globe as Globe2, Lock, Zap, UserCog, Building2, Scale, CirclePlay as PlayCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -70,16 +69,6 @@ function Nav() {
           ))}
         </nav>
         <div className="hidden items-center gap-2 md:flex">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              enableDemo();
-              navigate({ to: "/app" });
-            }}
-          >
-            <PlayCircle className="mr-1 h-4 w-4" /> Explore demo
-          </Button>
           <Button variant="ghost" size="sm" asChild>
             <Link to="/login">Log in</Link>
           </Button>
@@ -118,16 +107,6 @@ function Nav() {
                   {l.label}
                 </a>
               ))}
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setOpen(false);
-                  enableDemo();
-                  navigate({ to: "/app" });
-                }}
-              >
-                <PlayCircle className="mr-1 h-4 w-4" /> Explore demo
-              </Button>
               <Button variant="ghost" asChild onClick={() => setOpen(false)}>
                 <Link to="/login">Log in</Link>
               </Button>
