@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AuthLayout, SocialButtons, Divider } from "@/components/auth/AuthLayout";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/signup")({
   head: () => ({
