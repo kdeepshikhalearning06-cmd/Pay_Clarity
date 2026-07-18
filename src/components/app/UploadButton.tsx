@@ -152,6 +152,13 @@ const employeeRecords = employees.map((employee: any) => ({
   fte_percent: employee["FTE %"],
   hire_date: employee["Hire Date"],
   years_experience: employee["Total Years Experience"],
+
+  // These should be present
+  country: meta.country,
+  country_code: meta.countryCode,
+  currency: employee["Currency"],
+  employment_type: employee["Employment Type"],
+
   certifications: null,
   management_responsibility: null,
   working_conditions: null,

@@ -26,6 +26,7 @@ import { WorkflowStrip } from "@/components/app/WorkflowStrip";
 import { useDemoMode, useUploadedFiles } from "@/lib/demo-store";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/app/review")({
   head: () => ({
@@ -166,13 +167,56 @@ function ReviewPage() {
   const files = useUploadedFiles();
   const hasData = demo || files.length > 0;
 
-  const [rows, setRows] = useState<ReviewRow[]>(() => generateRows());
+  const [rows, setRows] = useState<ReviewRow[]>([]);
   const [q, setQ] = useState("");
   const [country, setCountry] = useState("all");
   const [validation, setValidation] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey>("employeeId");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  useEffect(() => {
+  if (demo) {
+    setRows(generateRows());
+    return;
+  }
+
+  async function loadEmployees() {
+    const { data, error } = await supabase
+      .from("employee_records")
+      .select("*");
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    const mappedRows: ReviewRow[] = (data ?? []).map((employee: any) => ({
+  id: employee.id,
+  employeeId: employee.employee_code,
+  country: employee.country, // We'll make this dynamic later
+  countryCode: employee.country_code,
+  department: employee.department,
+  jobTitle: employee.job_title,
+  gender:
+    employee.gender === "Female"
+      ? "F"
+      : employee.gender === "Male"
+      ? "M"
+      : "X",
+  salary: Number(employee.annual_base_salary ?? 0),
+  currency: "EUR",
+  employmentType: "Full-time",
+  validation: "Valid",
+}));
+
+setRows(mappedRows);
+
+console.log("Mapped Review Rows:", mappedRows);
+  }
+
+  loadEmployees();
+}, [demo]);
 
   const filtered = useMemo(() => {
     let result = rows.filter(
