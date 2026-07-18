@@ -57,11 +57,12 @@ export function CreateReportModal({
   const handleContinue = () => {
     if (!canContinue) return;
     if (source === "demo") {
-      enableDemo();
-      toast.success("Sample data loaded into your workspace");
-    } else {
-      toast.success("Assessment draft created");
-    }
+  enableDemo();
+  toast.success("Sample data loaded into your workspace");
+} else {
+  disableDemo();
+  toast.success("Assessment draft created");
+}
     onOpenChange(false);
     navigate({
       to: "/app/reports/setup",

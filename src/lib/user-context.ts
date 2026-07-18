@@ -15,6 +15,7 @@ export interface UserProfile {
   language: string;
   timezone: string;
   avatar: string;
+  workspace_id?: string;
 }
 
 export const CURRENT_USER: UserProfile = {
