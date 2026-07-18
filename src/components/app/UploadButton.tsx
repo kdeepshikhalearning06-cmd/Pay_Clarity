@@ -136,6 +136,43 @@ if (missingColumns.length > 0) {
 
     console.log("Saved to Supabase:", data);
 
+    const uploadId = data[0].id;
+
+console.log("Upload ID:", uploadId);
+
+const employeeRecords = employees.map((employee: any) => ({
+  upload_id: uploadId,
+  employee_code: employee["Employee ID"],
+  job_title: employee["Job Title"],
+  department: employee["Department"],
+  job_level: employee["Job Level"],
+  gender: employee["Gender"],
+  annual_base_salary: employee["Base Salary (EUR)"],
+  bonus: employee["Variable Bonus (EUR)"],
+  fte_percent: employee["FTE %"],
+  hire_date: employee["Hire Date"],
+  years_experience: employee["Total Years Experience"],
+  certifications: null,
+  management_responsibility: null,
+  working_conditions: null,
+}));
+
+console.log("Employee Records:", employeeRecords);
+
+const { error: employeeError } = await supabase
+  .from("employee_records")
+  .insert(employeeRecords);
+
+if (employeeError) {
+  console.error(employeeError);
+  setProgress(null);
+
+  toast.error("Failed to save employee records");
+  return;
+}
+
+console.log("Employee records saved successfully.");
+
     // Demo UI
     addUploadedFile({
       name: file.name,
