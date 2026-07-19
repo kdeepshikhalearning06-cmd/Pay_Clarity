@@ -162,55 +162,70 @@ function GroupingPage() {
   const [groups, setGroups] = useState<JobGroup[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
-
-  useEffect(() => {
+useEffect(() => {
   if (demo) {
     setGroups(INITIAL_GROUPS);
     return;
   }
 
   async function loadGroups() {
-    // Get all employees
-    const { data: employees, error } = await supabase
-      .from("employee_records")
-      .select("*");
+    const uploadId = localStorage.getItem("currentUploadId");
 
-    if (error) {
-      console.error(error);
-      return;
-    }
+console.log("Grouping Page Upload ID:", uploadId);
+console.log("All localStorage:", { ...localStorage });
 
-    if (!employees || employees.length === 0) {
+    if (!uploadId) {
+      console.log("No upload ID found");
       setGroups([]);
       return;
     }
 
-    // Group employees by job title
-    const grouped = employees.reduce((acc: any, employee: any) => {
-      const title = employee.job_title || "Unknown";
+    const { data: employees, error } = await supabase
+      .from("employee_records")
+      .select("*")
+      .eq("upload_id", uploadId);
 
-      if (!acc[title]) {
-        acc[title] = [];
-      }
+    if (error) {
+      console.error(error);
+      toast.error("Failed to load employee data");
+      return;
+    }
 
-      acc[title].push(employee);
+    if (!employees || employees.length === 0) {
+      console.log("No employees found");
+      setGroups([]);
+      return;
+    }
 
-      return acc;
-    }, {});
+    // Group employees by Job Title
+    const grouped = employees.reduce(
+      (acc: Record<string, any[]>, employee: any) => {
+        const title = employee.job_title || "Unknown";
+
+        if (!acc[title]) {
+          acc[title] = [];
+        }
+
+        acc[title].push(employee);
+
+        return acc;
+      },
+      {}
+    );
 
     const generatedGroups: JobGroup[] = Object.entries(grouped).map(
-      ([title, employees]: any, index) => ({
+      ([title, employeeList], index) => ({
         id: `group-${index}`,
         suggestedGrouping: title,
         originalTitles: [title],
         confidence: 95,
-        employees: employees.length,
+        employees: (employeeList as any[]).length,
         status: "pending",
         needsReview: false,
       })
     );
 
-    console.log(generatedGroups);
+    console.log("Generated Groups:", generatedGroups);
 
     setGroups(generatedGroups);
   }
@@ -393,11 +408,12 @@ function GroupingPage() {
             <TrendingUp className="h-4 w-4 text-info" />
           </div>
           <div className="mt-3 font-display text-3xl font-semibold tabular-nums">
-            {Math.round(
-              groups.reduce((s, g) => s + g.confidence, 0) /
-                groups.length,
-            )}
-            %
+            {groups.length
+  ? Math.round(
+      groups.reduce((s, g) => s + g.confidence, 0) / groups.length
+    )
+  : 0}
+%
           </div>
           <div className="mt-1 text-xs text-muted-foreground">
             across all groupings

@@ -137,6 +137,7 @@ if (missingColumns.length > 0) {
     console.log("Saved to Supabase:", data);
 
     const uploadId = data[0].id;
+    localStorage.setItem("currentUploadId", uploadId);
 
 console.log("Upload ID:", uploadId);
 
