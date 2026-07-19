@@ -172,7 +172,13 @@ useEffect(() => {
     const uploadId = localStorage.getItem("currentUploadId");
 
 console.log("Grouping Page Upload ID:", uploadId);
-console.log("All localStorage:", { ...localStorage });
+console.log(
+ "ALL STORAGE DATA",
+ Object.keys(localStorage).map(key => ({
+   key,
+   value: localStorage.getItem(key)
+ }))
+);
 
     if (!uploadId) {
       console.log("No upload ID found");
@@ -227,7 +233,17 @@ console.log("All localStorage:", { ...localStorage });
 
     console.log("Generated Groups:", generatedGroups);
 
-    setGroups(generatedGroups);
+localStorage.setItem(
+  "payclarity_groups",
+  JSON.stringify(generatedGroups)
+);
+
+console.log(
+  "Saved Groups:",
+  JSON.parse(localStorage.getItem("payclarity_groups") || "[]")
+);
+
+setGroups(generatedGroups);
   }
 
   loadGroups();

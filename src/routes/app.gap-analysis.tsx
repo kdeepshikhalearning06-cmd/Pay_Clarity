@@ -1,7 +1,27 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "motion/react";
-import { ChartLine as LineChart, ArrowLeft, ArrowRight, Users, Building2, TriangleAlert as AlertTriangle, ShieldCheck, Bot, TrendingUp, TrendingDown, Download, Flag, StickyNote, ChevronRight, CircleCheck as CheckCircle2, CircleAlert as AlertCircle, FileSpreadsheet, ClipboardCheck } from "lucide-react";
+import {
+  ChartLine as LineChart,
+  ArrowLeft,
+  ArrowRight,
+  Users,
+  Building2,
+  TriangleAlert as AlertTriangle,
+  ShieldCheck,
+  Bot,
+  TrendingUp,
+  TrendingDown,
+  Download,
+  Flag,
+  StickyNote,
+  ChevronRight,
+  CircleCheck as CheckCircle2,
+  CircleAlert as AlertCircle,
+  FileSpreadsheet,
+  ClipboardCheck,
+  FileText,
+} from "lucide-react";
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +45,7 @@ import { ComplianceAlert } from "@/components/app/ComplianceAlert";
 import { useDemoMode, useUploadedFiles } from "@/lib/demo-store";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/app/gap-analysis")({
   head: () => ({
@@ -241,38 +262,206 @@ const OBJECTIVE_FACTORS = [
 function GapAnalysisPage() {
   const [demo] = useDemoMode();
   const files = useUploadedFiles();
+
   const hasData = demo || files.length > 0;
+
+  // Demo mode → hardcoded CATEGORIES
+  // Real mode → later connected with Supabase grouping output
+  const [categories, setCategories] = useState<JobCategory[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadGroups = async () => {
+      const savedGroups = localStorage.getItem(
+        "payclarity_groups"
+      );
+
+      if (!savedGroups) return;
+
+      const uploadId = localStorage.getItem("currentUploadId");
+      if (!uploadId) return;
+
+      const { data: employeeData, error } = await supabase
+        .from("employee_records")
+        .select("*")
+        .eq("upload_id", uploadId);
+
+      if (error) {
+        console.error(error);
+        return;
+      }
+
+      setEmployees(employeeData || []);
+
+      const groups = JSON.parse(savedGroups);
+
+      console.log(
+        "Gap Analysis Groups:",
+        groups
+      );
+
+      const getMedian = (arr: any[]) => {
+  if (!arr.length) return 0;
+
+  const salaries = arr
+    .map((e) => Number(e.annual_base_salary))
+    .sort((a, b) => a - b);
+
+  const middle = Math.floor(salaries.length / 2);
+
+  if (salaries.length % 2 === 1) {
+    return salaries[middle];
+  }
+
+  return (salaries[middle - 1] + salaries[middle]) / 2;
+};
+
+const getMean = (arr: any[]) => {
+  if (!arr.length) return 0;
+
+  return (
+    arr.reduce(
+      (sum, e) => sum + Number(e.annual_base_salary),
+      0,
+    ) / arr.length
+  );
+};
+
+
+const mappedCategories = groups.map(
+  (g: any, index: number) => {
+
+    const groupEmployees = employeeData.filter(
+      (emp: any) =>
+        g.originalTitles?.includes(emp.job_title)
+    );
+
+
+    const femaleEmployees = groupEmployees.filter(
+      (emp: any) =>
+        emp.gender === "Female"
+    );
+
+
+    const maleEmployees = groupEmployees.filter(
+      (emp: any) =>
+        emp.gender === "Male"
+    );
+
+
+    const femaleMedian =
+      getMedian(femaleEmployees);
+
+    const maleMedian =
+      getMedian(maleEmployees);
+
+
+    const gapPct =
+      maleMedian > 0
+        ? ((maleMedian - femaleMedian) / maleMedian) * 100
+        : 0;
+
+
+    return {
+      id: String(index),
+
+      name:
+        g.suggestedGrouping || "Unknown",
+
+      employees:
+        groupEmployees.length,
+
+
+      femaleMedian,
+
+      maleMedian,
+
+
+      femaleMean:
+        getMean(femaleEmployees),
+
+      maleMean:
+        getMean(maleEmployees),
+
+
+      gapPct:
+        Number(gapPct.toFixed(2)),
+
+
+      thresholdStatus:
+  maleEmployees.length === 0 ||
+  femaleEmployees.length === 0
+    ? "healthy"
+    : gapPct > 5
+      ? "requires_explanation"
+      : "healthy",
+
+
+      explanationStatus:
+        "none",
+
+
+      countries: [],
+
+      departments: [],
+
+
+      aiObservation:
+        maleEmployees.length === 0 ||
+        femaleEmployees.length === 0
+          ? "Insufficient data to calculate pay gap."
+          : gapPct > 5
+            ? "Pay gap exceeds 5% threshold and requires explanation."
+            : "No significant pay gap detected."
+    };
+  }
+);
+
+      setCategories(mappedCategories);
+    };
+
+    loadGroups();
+  }, []);
+
+  const displayedCategories = demo ? CATEGORIES : categories;
 
   const [selectedCategory, setSelectedCategory] =
     useState<JobCategory | null>(null);
+
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [notes, setNotes] = useState<Record<string, string>>({});
-  const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
-  const [explanationStatuses, setExplanationStatuses] = useState<
-    Record<string, ExplanationStatus>
-  >({});
+
+  const [statusFilter, setStatusFilter] =
+    useState("all");
+
+  const [notes, setNotes] =
+    useState<Record<string, string>>({});
+
+  const [activeNoteId, setActiveNoteId] =
+    useState<string | null>(null);
+
+  const [explanationStatuses, setExplanationStatuses] =
+    useState<Record<string, ExplanationStatus>>({});
 
   const stats = useMemo(() => {
-    const totalEmployees = CATEGORIES.reduce(
+    const totalEmployees = displayedCategories.reduce(
       (s, c) => s + c.employees,
       0,
     );
-    const totalCategories = CATEGORIES.length;
-    const aboveThreshold = CATEGORIES.filter(
+    const totalCategories = displayedCategories.length;
+    const aboveThreshold = displayedCategories.filter(
       (c) => c.thresholdStatus !== "healthy",
     ).length;
-    const requireExplanations = CATEGORIES.filter(
+    const requireExplanations = displayedCategories.filter(
       (c) => c.thresholdStatus === "requires_explanation",
     ).length;
-    const requireHumanReview = CATEGORIES.filter(
+    const requireHumanReview = displayedCategories.filter(
       (c) => c.thresholdStatus === "joint_assessment",
     ).length;
     const overallGap = 4.7;
     const medianGap = 3.9;
     const meanGap = 4.2;
     const countries = new Set<string>();
-    CATEGORIES.forEach((c) =>
+    displayedCategories.forEach((c) =>
       c.countries.forEach((co) => countries.add(co)),
     );
     const readiness = Math.round(
@@ -290,16 +479,16 @@ function GapAnalysisPage() {
       countriesCount: countries.size,
       readiness,
     };
-  }, []);
+  }, [displayedCategories]);
 
   const filteredCategories = useMemo(
     () =>
       statusFilter === "all"
-        ? CATEGORIES
-        : CATEGORIES.filter(
+        ? displayedCategories
+        : displayedCategories.filter(
             (c) => c.thresholdStatus === statusFilter,
           ),
-    [statusFilter],
+    [statusFilter, displayedCategories],
   );
 
   const openDrawer = (cat: JobCategory) => {
@@ -348,7 +537,7 @@ function GapAnalysisPage() {
         "Threshold Status",
         "Explanation Status",
       ],
-      ...CATEGORIES.map((c) => [
+      ...displayedCategories.map((c) => [
         c.name,
         String(c.employees),
         String(c.femaleMedian),
@@ -572,7 +761,7 @@ function GapAnalysisPage() {
             </SelectContent>
           </Select>
           <div className="ml-auto text-xs text-muted-foreground tabular-nums">
-            {filteredCategories.length} of {CATEGORIES.length} categories
+            {filteredCategories.length} of {displayedCategories.length} categories
           </div>
         </div>
 
