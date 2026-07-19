@@ -407,12 +407,20 @@ const mappedCategories = groups.map(
 
 
       aiObservation:
-        maleEmployees.length === 0 ||
-        femaleEmployees.length === 0
-          ? "Insufficient data to calculate pay gap."
-          : gapPct > 5
-            ? "Pay gap exceeds 5% threshold and requires explanation."
-            : "No significant pay gap detected."
+  maleEmployees.length === 0 || femaleEmployees.length === 0
+    ? `Insufficient gender data is available to calculate a reliable pay gap for this comparable work category.`
+    : `A total of ${groupEmployees.length} employees were analysed in the "${g.suggestedGrouping}" comparable work category.
+
+Female median salary: €${femaleMedian.toLocaleString()}
+Male median salary: €${maleMedian.toLocaleString()}
+
+The calculated median gender pay gap is ${gapPct.toFixed(1)}%.
+
+${
+  gapPct > 5
+    ? "This exceeds the EU Pay Transparency Directive threshold of 5%. HR should review objective factors such as seniority, experience, performance ratings, job level, or market-based pay before publishing the report."
+    : "This is below the EU Pay Transparency Directive threshold of 5%. No immediate compliance concerns were identified for this group."
+}`
     };
   }
 );
@@ -457,9 +465,17 @@ const mappedCategories = groups.map(
     const requireHumanReview = displayedCategories.filter(
       (c) => c.thresholdStatus === "joint_assessment",
     ).length;
-    const overallGap = 4.7;
-    const medianGap = 3.9;
-    const meanGap = 4.2;
+    const overallGap =
+  displayedCategories.length > 0
+    ? displayedCategories.reduce(
+        (sum, c) => sum + c.gapPct,
+        0
+      ) / displayedCategories.length
+    : 0;
+
+const medianGap = overallGap;
+
+const meanGap = overallGap;
     const countries = new Set<string>();
     displayedCategories.forEach((c) =>
       c.countries.forEach((co) => countries.add(co)),
