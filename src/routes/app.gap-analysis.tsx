@@ -60,7 +60,11 @@ export const Route = createFileRoute("/app/gap-analysis")({
   component: GapAnalysisPage,
 });
 
-type ThresholdStatus = "healthy" | "requires_explanation" | "joint_assessment";
+type ThresholdStatus =
+  | "healthy"
+  | "requires_explanation"
+  | "joint_assessment"
+  | "cannot_calculate";
 type ExplanationStatus = "none" | "drafted" | "reviewed" | "flagged";
 
 type JobCategory = {
@@ -300,11 +304,34 @@ function GapAnalysisPage() {
         groups
       );
 
-      const getMedian = (arr: any[]) => {
-  if (!arr.length) return 0;
+      const normalizeSalary = (employee: any) => {
+  const salary = Number(employee.annual_base_salary || 0);
 
-  const salaries = arr
-    .map((e) => Number(e.annual_base_salary))
+  const fte = Number(employee.fte_percent || 100);
+
+  if (!fte || fte <= 0) return 0;
+
+  return salary / (fte / 100);
+};
+
+
+const getMean = (employees: any[]) => {
+  if (!employees.length) return 0;
+
+  const salaries = employees.map(normalizeSalary);
+
+  return (
+    salaries.reduce((sum, salary) => sum + salary, 0) /
+    salaries.length
+  );
+};
+
+
+const getMedian = (employees: any[]) => {
+  if (!employees.length) return 0;
+
+  const salaries = employees
+    .map(normalizeSalary)
     .sort((a, b) => a - b);
 
   const middle = Math.floor(salaries.length / 2);
@@ -313,18 +340,26 @@ function GapAnalysisPage() {
     return salaries[middle];
   }
 
-  return (salaries[middle - 1] + salaries[middle]) / 2;
+  return (
+    salaries[middle - 1] +
+    salaries[middle]
+  ) / 2;
 };
 
-const getMean = (arr: any[]) => {
-  if (!arr.length) return 0;
+
+const calculateGap = (
+  maleValue:number,
+  femaleValue:number
+) => {
+
+  if (!maleValue) return 0;
 
   return (
-    arr.reduce(
-      (sum, e) => sum + Number(e.annual_base_salary),
-      0,
-    ) / arr.length
+    ((maleValue - femaleValue) /
+      maleValue) *
+    100
   );
+
 };
 
 
@@ -356,10 +391,16 @@ const mappedCategories = groups.map(
       getMedian(maleEmployees);
 
 
-    const gapPct =
-      maleMedian > 0
-        ? ((maleMedian - femaleMedian) / maleMedian) * 100
-        : 0;
+    const medianGap = calculateGap(
+  maleMedian,
+  femaleMedian
+);
+
+
+const meanGap = calculateGap(
+  getMean(maleEmployees),
+  getMean(femaleEmployees)
+);
 
 
     return {
@@ -385,16 +426,16 @@ const mappedCategories = groups.map(
 
 
       gapPct:
-        Number(gapPct.toFixed(2)),
+        Number(medianGap.toFixed(2)),
 
 
       thresholdStatus:
-  maleEmployees.length === 0 ||
-  femaleEmployees.length === 0
-    ? "healthy"
-    : gapPct > 5
-      ? "requires_explanation"
-      : "healthy",
+maleEmployees.length === 0 ||
+femaleEmployees.length === 0
+  ? "cannot_calculate"
+  : medianGap > 5
+    ? "requires_explanation"
+    : "healthy",
 
 
       explanationStatus:
@@ -414,10 +455,10 @@ const mappedCategories = groups.map(
 Female median salary: €${femaleMedian.toLocaleString()}
 Male median salary: €${maleMedian.toLocaleString()}
 
-The calculated median gender pay gap is ${gapPct.toFixed(1)}%.
+The calculated median gender pay gap is ${medianGap.toFixed(1)}%.
 
 ${
-  gapPct > 5
+  medianGap > 5
     ? "This exceeds the EU Pay Transparency Directive threshold of 5%. HR should review objective factors such as seniority, experience, performance ratings, job level, or market-based pay before publishing the report."
     : "This is below the EU Pay Transparency Directive threshold of 5%. No immediate compliance concerns were identified for this group."
 }`
@@ -1213,6 +1254,11 @@ function ThresholdBadge({
       label: "Joint assessment risk",
       className: "bg-destructive/10 text-destructive",
       icon: AlertTriangle,
+    },
+    cannot_calculate: {
+      label: "Cannot calculate",
+      className: "bg-muted text-muted-foreground",
+      icon: AlertCircle,
     },
   } as const;
   const m = map[status];
