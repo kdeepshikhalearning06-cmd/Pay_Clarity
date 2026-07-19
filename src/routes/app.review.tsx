@@ -26,6 +26,7 @@ import { WorkflowStrip } from "@/components/app/WorkflowStrip";
 import { useDemoMode, useUploadedFiles } from "@/lib/demo-store";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/app/review")({
   head: () => ({
@@ -166,13 +167,56 @@ function ReviewPage() {
   const files = useUploadedFiles();
   const hasData = demo || files.length > 0;
 
-  const [rows, setRows] = useState<ReviewRow[]>(() => generateRows());
+  const [rows, setRows] = useState<ReviewRow[]>([]);
   const [q, setQ] = useState("");
   const [country, setCountry] = useState("all");
   const [validation, setValidation] = useState("all");
   const [sortKey, setSortKey] = useState<SortKey>("employeeId");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  useEffect(() => {
+  if (demo) {
+    setRows(generateRows());
+    return;
+  }
+
+  async function loadEmployees() {
+    const { data, error } = await supabase
+      .from("employee_records")
+      .select("*");
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    const mappedRows: ReviewRow[] = (data ?? []).map((employee: any) => ({
+  id: employee.id,
+  employeeId: employee.employee_code,
+  country: employee.country, // We'll make this dynamic later
+  countryCode: employee.country_code,
+  department: employee.department,
+  jobTitle: employee.job_title,
+  gender:
+    employee.gender === "Female"
+      ? "F"
+      : employee.gender === "Male"
+      ? "M"
+      : "X",
+  salary: Number(employee.annual_base_salary ?? 0),
+  currency: "EUR",
+  employmentType: "Full-time",
+  validation: "Valid",
+}));
+
+setRows(mappedRows);
+
+console.log("Mapped Review Rows:", mappedRows);
+  }
+
+  loadEmployees();
+}, [demo]);
 
   const filtered = useMemo(() => {
     let result = rows.filter(
@@ -219,6 +263,33 @@ function ReviewPage() {
         return { ...r, [field]: value } as ReviewRow;
       }),
     );
+  };
+  
+  const saveRow = async (row: ReviewRow) => {
+  const { error } = await supabase
+    .from("employee_records")
+    .update({
+      employee_code: row.employeeId,
+      department: row.department,
+      job_title: row.jobTitle,
+      gender:
+        row.gender === "F"
+          ? "Female"
+          : row.gender === "M"
+          ? "Male"
+          : "Other",
+      annual_base_salary: row.salary,
+    })
+    .eq("id", row.id);
+
+  if (error) {
+    console.error(error);
+    toast.error("Failed to save changes");
+    return false;
+  }
+
+  toast.success("Changes saved");
+  return true;
   };
 
   if (!hasData) {
@@ -415,9 +486,14 @@ function ReviewPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={() => {
+                          onClick={async () => {
+                            const row = rows.find((r) => r.id === editingId);
+
+                            if (!row) return;
+
+                             await saveRow(row);
+
                             setEditingId(null);
-                            toast.success("Row updated");
                           }}
                         >
                           <Check className="h-3.5 w-3.5 text-success" />

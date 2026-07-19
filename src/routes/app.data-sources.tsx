@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
@@ -34,6 +34,7 @@ import {
 } from "@/lib/demo-store";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/app/data-sources")({
   head: () => ({
@@ -51,6 +52,23 @@ function DataSourcesPage() {
   const [q, setQ] = useState("");
   const [country, setCountry] = useState("all");
   const [previewFile, setPreviewFile] = useState<UploadedFile | null>(null);
+  useEffect(() => {
+  async function checkUser() {
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    console.log("Logged in user:", user);
+  }
+
+  checkUser();
+}, []);
 
   const filtered = useMemo(
     () =>

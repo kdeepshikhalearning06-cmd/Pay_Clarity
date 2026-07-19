@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { Workflow, ArrowRight, ArrowLeft, Check, X, Pencil, Users, Sparkles, CircleAlert as AlertCircle, CircleCheck as CheckCircle2, TrendingUp } from "lucide-react";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { WorkflowStrip } from "@/components/app/WorkflowStrip";
 import { useDemoMode, useUploadedFiles } from "@/lib/demo-store";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/grouping")({
@@ -34,7 +35,6 @@ type JobGroup = {
   status: GroupStatus;
   needsReview: boolean;
 };
-
 const INITIAL_GROUPS: JobGroup[] = [
   {
     id: "grp_1",
@@ -154,14 +154,205 @@ const INITIAL_GROUPS: JobGroup[] = [
 
 const TOTAL_TITLES = 149;
 
+function normalizeJobTitle(title: string): string {
+  return (title || "")
+    .toLowerCase()
+    .replace(/\bsr\b/g, "senior")
+    .replace(/\bengg\b/g, "engineer")
+    .replace(/\bmgr\b/g, "manager")
+    .replace(/\bassoc\b/g, "associate")
+    .trim();
+}
+
+function getRoleLevel(title: string): "Management" | "Individual Contributor" {
+  const t = normalizeJobTitle(title);
+
+  if (
+    t.includes("manager") ||
+    t.includes("director") ||
+    t.includes("head") ||
+    t.includes("vp")
+  ) {
+    return "Management";
+  }
+
+  return "Individual Contributor";
+}
+
+function getJobFamily(title: string): string {
+  const t = normalizeJobTitle(title);
+
+  if (
+  t.includes("manager") &&
+  (
+    t.includes("engineering") ||
+    t.includes("software") ||
+    t.includes("developer")
+  )
+) {
+  return "Engineering Management";
+}
+
+if (
+  t.includes("engineer") ||
+  t.includes("developer") ||
+  t.includes("programmer") ||
+  t.includes("software") ||
+  t.includes("engg")
+) {
+  return "Software Engineering";
+}
+
+  if (
+    t.includes("sales") ||
+    t.includes("account executive") ||
+    t.includes("business development")
+  ) {
+    return "Sales";
+  }
+
+  if (
+    t.includes("hr") ||
+    t.includes("people") ||
+    t.includes("talent")
+  ) {
+    return "People Operations";
+  }
+
+  if (
+    t.includes("finance") ||
+    t.includes("accountant")
+  ) {
+    return "Finance";
+  }
+
+  if (
+    t.includes("marketing") ||
+    t.includes("brand")
+  ) {
+    return "Marketing";
+  }
+
+  if (
+    t.includes("data") ||
+    t.includes("analyst") ||
+    t.includes("analytics")
+  ) {
+    return "Data & Analytics";
+  }
+
+  return "Other";
+}
+
 function GroupingPage() {
   const [demo] = useDemoMode();
   const files = useUploadedFiles();
   const hasData = demo || files.length > 0;
 
-  const [groups, setGroups] = useState<JobGroup[]>(INITIAL_GROUPS);
+  const [groups, setGroups] = useState<JobGroup[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+useEffect(() => {
+  if (demo) {
+    setGroups(INITIAL_GROUPS);
+    return;
+  }
+
+  async function loadGroups() {
+    const uploadId = localStorage.getItem("currentUploadId");
+
+console.log("Grouping Page Upload ID:", uploadId);
+console.log(
+ "ALL STORAGE DATA",
+ Object.keys(localStorage).map(key => ({
+   key,
+   value: localStorage.getItem(key)
+ }))
+);
+
+    if (!uploadId) {
+      console.log("No upload ID found");
+      setGroups([]);
+      return;
+    }
+
+    const { data: employees, error } = await supabase
+      .from("employee_records")
+      .select("*")
+      .eq("upload_id", uploadId);
+
+    if (error) {
+      console.error(error);
+      toast.error("Failed to load employee data");
+      return;
+    }
+
+    if (!employees || employees.length === 0) {
+  console.log("No employees found");
+  setGroups([]);
+  return;
+}
+
+console.log(
+  "Unique Job Titles:",
+  [...new Set(employees.map((e: any) => e.job_title))].sort()
+);
+
+// Group employees by Job Title
+const grouped = employees.reduce(
+  (acc: Record<string, any[]>, employee: any) => {
+    const family = getJobFamily(employee.job_title);
+const roleLevel = getRoleLevel(employee.job_title);
+
+const groupName =
+  roleLevel === "Management"
+    ? `${family} Management`
+    : family;
+
+if (!acc[groupName]) {
+  acc[groupName] = [];
+}
+
+acc[groupName].push(employee);
+
+    return acc;
+  },
+  {}
+);
+
+    const generatedGroups: JobGroup[] = Object.entries(grouped).map(
+  ([family, employeeList], index) => ({
+    id: `group-${index}`,
+    suggestedGrouping: family,
+    originalTitles: [
+      ...new Set(
+        (employeeList as any[]).map((e) => e.job_title)
+      ),
+    ],
+    confidence: 90,
+    employees: (employeeList as any[]).length,
+    status: "pending",
+    needsReview: false,
+  })
+);
+
+    console.log("Generated Groups:", generatedGroups);
+
+localStorage.setItem(
+  "payclarity_groups",
+  JSON.stringify(generatedGroups)
+);
+
+console.log(
+  "Saved Groups:",
+  JSON.parse(localStorage.getItem("payclarity_groups") || "[]")
+);
+
+setGroups(generatedGroups);
+  }
+
+  loadGroups();
+}, [demo]);
 
   const stats = useMemo(() => {
     const accepted = groups.filter((g) => g.status === "accepted").length;
@@ -338,11 +529,12 @@ function GroupingPage() {
             <TrendingUp className="h-4 w-4 text-info" />
           </div>
           <div className="mt-3 font-display text-3xl font-semibold tabular-nums">
-            {Math.round(
-              groups.reduce((s, g) => s + g.confidence, 0) /
-                groups.length,
-            )}
-            %
+            {groups.length
+  ? Math.round(
+      groups.reduce((s, g) => s + g.confidence, 0) / groups.length
+    )
+  : 0}
+%
           </div>
           <div className="mt-1 text-xs text-muted-foreground">
             across all groupings
@@ -629,3 +821,5 @@ function NoDataState() {
     </motion.div>
   );
 }
+
+
