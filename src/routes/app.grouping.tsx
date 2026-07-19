@@ -154,16 +154,54 @@ const INITIAL_GROUPS: JobGroup[] = [
 
 const TOTAL_TITLES = 149;
 
-function getJobFamily(title: string): string {
-  const t = (title || "").toLowerCase();
+function normalizeJobTitle(title: string): string {
+  return (title || "")
+    .toLowerCase()
+    .replace(/\bsr\b/g, "senior")
+    .replace(/\bengg\b/g, "engineer")
+    .replace(/\bmgr\b/g, "manager")
+    .replace(/\bassoc\b/g, "associate")
+    .trim();
+}
+
+function getRoleLevel(title: string): "Management" | "Individual Contributor" {
+  const t = normalizeJobTitle(title);
 
   if (
-    t.includes("engineer") ||
-    t.includes("developer") ||
-    t.includes("programmer")
+    t.includes("manager") ||
+    t.includes("director") ||
+    t.includes("head") ||
+    t.includes("vp")
   ) {
-    return "Software Engineering";
+    return "Management";
   }
+
+  return "Individual Contributor";
+}
+
+function getJobFamily(title: string): string {
+  const t = normalizeJobTitle(title);
+
+  if (
+  t.includes("manager") &&
+  (
+    t.includes("engineering") ||
+    t.includes("software") ||
+    t.includes("developer")
+  )
+) {
+  return "Engineering Management";
+}
+
+if (
+  t.includes("engineer") ||
+  t.includes("developer") ||
+  t.includes("programmer") ||
+  t.includes("software") ||
+  t.includes("engg")
+) {
+  return "Software Engineering";
+}
 
   if (
     t.includes("sales") ||
@@ -264,12 +302,18 @@ console.log(
 const grouped = employees.reduce(
   (acc: Record<string, any[]>, employee: any) => {
     const family = getJobFamily(employee.job_title);
+const roleLevel = getRoleLevel(employee.job_title);
 
-    if (!acc[family]) {
-      acc[family] = [];
-    }
+const groupName =
+  roleLevel === "Management"
+    ? `${family} Management`
+    : family;
 
-    acc[family].push(employee);
+if (!acc[groupName]) {
+  acc[groupName] = [];
+}
+
+acc[groupName].push(employee);
 
     return acc;
   },
