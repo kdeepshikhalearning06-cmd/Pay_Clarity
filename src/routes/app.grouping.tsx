@@ -343,6 +343,38 @@ localStorage.setItem(
   JSON.stringify(generatedGroups)
 );
 
+console.log("Upload ID:", uploadId);
+
+if (uploadId) {
+  const rows = generatedGroups.map((group) => ({
+    upload_id: uploadId,
+    group_name: group.suggestedGrouping,
+    original_titles: group.originalTitles,
+    employee_count: group.employees,
+    confidence: group.confidence,
+    status: group.status,
+    needs_review: group.needsReview,
+  }));
+
+  const { data, error } = await supabase
+    .from("job_groups")
+    .upsert(rows, {
+      onConflict: "upload_id,group_name",
+    });
+
+  if (error) {
+    if (error) {
+  console.log("FULL ERROR");
+  console.log(error);
+  console.log(JSON.stringify(error, null, 2));
+}
+  } else {
+    console.log("Groups saved to Supabase");
+    console.log("Returned data:", data);
+console.log("Returned error:", error);
+  }
+}
+
 console.log(
   "Saved Groups:",
   JSON.parse(localStorage.getItem("payclarity_groups") || "[]")

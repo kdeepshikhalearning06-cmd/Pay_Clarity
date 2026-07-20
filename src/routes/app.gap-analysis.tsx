@@ -310,7 +310,22 @@ function GapAnalysisPage() {
         groups
       );
 
-      
+    const { data: dbGroups, error: groupsError } = await supabase
+  .from("job_groups")
+  .select("*")
+  .eq("upload_id", uploadId);
+
+if (groupsError) {
+  console.error(groupsError);
+  return;
+}
+
+console.table(
+  dbGroups?.map((g) => ({
+    id: g.id,
+    group_name: g.group_name,
+  }))
+);
 
 
 const mappedCategories = groups.map(
@@ -441,14 +456,6 @@ femaleEmployees.length === 0
     ? `Insufficient gender data is available to calculate a reliable pay gap for this comparable work category.`
     : `d in the "${g.suggestedGrouping}" comparable work categoryA total of ${groupEmployees.length} employees were analysed.
 
-${
- outliers > 0
- ?
- `${outliers} salary outlier(s) detected. HR review recommended before final conclusions.`
- :
- "No significant salary outliers detected."
-}
-
 Female median salary: €${femaleMedian.toLocaleString()}
 Male median salary: €${maleMedian.toLocaleString()}
 
@@ -466,6 +473,50 @@ ${
     };
   }
 );
+
+const analysisRows = mappedCategories
+  .map((category: any) => {
+    const dbGroup = dbGroups?.find(
+      (g) => g.group_name === category.name
+    );
+
+    if (!dbGroup) {
+      console.warn(
+        "No matching job group found:",
+        category.name
+      );
+      return null;
+    }
+
+    return {
+      upload_id: uploadId,
+      job_group_id: dbGroup.id,
+      male_average_salary: category.maleMean,
+      female_average_salary: category.femaleMean,
+      pay_gap_percent: category.gapPct,
+      employee_count: category.employees,
+      exceeds_threshold:
+        category.thresholdStatus !== "healthy",
+      threshold_percent: 5,
+      analysis_status: "completed",
+    };
+  })
+  .filter(Boolean);
+
+  console.table(analysisRows);
+
+  const { data, error: analysisError } = await supabase
+  .from("pay_gap_analyses")
+  .upsert(analysisRows, {
+    onConflict: "upload_id,job_group_id",
+  })
+  .select();
+
+if (analysisError) {
+  console.error("Failed to save gap analysis:", analysisError);
+} else {
+  console.log("Gap analysis saved:", data);
+}
 
       setCategories(mappedCategories);
     };
@@ -1263,48 +1314,52 @@ function DrawerContent({
         </section>
 
         {/* Gap percentage */}
-        {(() => {
-          const gapPct = category.gapPct ?? 0
-          return (
-            <section className="rounded-xl border border-border/60 bg-background p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                Gender pay gap
-              </div>
-              <div
-                className={cn(
-                  "mt-1 font-display text-3xl font-bold tabular-nums",
-                  gapPct >= 5
-                    ? "text-warning"
-                    : "text-success",
-                )}
-              >
-                {gapPct.toFixed(1)}%
-              </div>
-            </div>
-            <ThresholdBadge
-              status={category.thresholdStatus}
-              large
-            />
+{(() => {
+  const gapPct = category.gapPct ?? 0;
+
+  return (
+    <section className="rounded-xl border border-border/60 bg-background p-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Gender pay gap
           </div>
-          <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className={cn(
-                "h-full rounded-full",
-                gapPct >= 5 ? "bg-warning" : "bg-success",
-              )}
-              style={{ width: `${Math.min(gapPct * 10, 100)}%` }}
-            />
+          <div
+            className={cn(
+              "mt-1 font-display text-3xl font-bold tabular-nums",
+              gapPct >= 5 ? "text-warning" : "text-success",
+            )}
+          >
+            {gapPct.toFixed(1)}%
           </div>
-          <div className="mt-2 flex justify-between text-[10px] text-muted-foreground">
-            <span>0%</span>
-            <span className="font-medium text-warning">5% threshold</span>
-            <span>10%+</span>
-          </div>
-          </section>
-        )
-        })()}
+        </div>
+
+        <ThresholdBadge
+          status={category.thresholdStatus}
+          large
+        />
+      </div>
+
+      <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-muted">
+        <div
+          className={cn(
+            "h-full rounded-full",
+            gapPct >= 5 ? "bg-warning" : "bg-success",
+          )}
+          style={{
+            width: `${Math.min(Math.abs(gapPct) * 10, 100)}%`,
+          }}
+        />
+      </div>
+
+      <div className="mt-2 flex justify-between text-[10px] text-muted-foreground">
+        <span>0%</span>
+        <span className="font-medium text-warning">5% threshold</span>
+        <span>10%+</span>
+      </div>
+    </section>
+  );
+})()}
 
         {/* Employee distribution */}
         <section>
