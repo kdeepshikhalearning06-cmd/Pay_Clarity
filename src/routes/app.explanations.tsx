@@ -10,6 +10,9 @@ import { ComplianceAlert } from "@/components/app/ComplianceAlert";
 import { useDemoMode, useUploadedFiles } from "@/lib/demo-store";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
+import { useEffect } from "react";
+
 
 export const Route = createFileRoute("/app/explanations")({
   head: () => ({
@@ -161,6 +164,148 @@ function ExplanationsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [realExplanations, setRealExplanations] =
+  useState<ExplanationData[]>([]);
+
+  const generateMissingExplanations = async () => {
+    console.log("🚀 generateMissingExplanations started");
+
+  const { data: analyses, error } = await supabase
+    .from("pay_gap_analyses")
+    .select(`
+      id,
+      pay_gap_percent,
+      male_average_salary,
+      female_average_salary,
+      employee_count,
+      analysis_status,
+      job_group_id,
+      job_groups (
+        group_name
+      )
+    `)
+    .eq("exceeds_threshold", true)
+
+    console.log("Analyses needing explanation:", analyses);
+
+
+  if (error) {
+    console.error(
+      "Failed fetching analyses:",
+      error
+    );
+    return;
+  }
+
+
+  if (!analyses || analyses.length === 0) {
+    return;
+  }
+
+
+  const explanations = analyses.map((analysis: any) => ({
+    pay_gap_analysis_id: analysis.id,
+
+    explanation:
+      `A pay gap of ${analysis.pay_gap_percent.toFixed(1)}% was identified in ${analysis.job_groups?.group_name || "this job group"}. The difference requires review based on compensation factors, role distribution, experience, and seniority structure.`,
+
+    confidence_tag: "medium",
+
+    objective_factors: {
+      male_average_salary:
+        analysis.male_average_salary,
+
+      female_average_salary:
+        analysis.female_average_salary,
+
+      employee_count:
+        analysis.employee_count,
+
+      pay_gap_percent:
+        analysis.pay_gap_percent
+    },
+
+    requires_human_review: true
+  }));
+
+
+  const { error: insertError } = await supabase
+    .from("ai_explanations")
+    .insert(explanations);
+
+
+  if (insertError) {
+    console.error(
+      "Failed creating explanations:",
+      insertError
+    );
+    return;
+  }
+
+
+  console.log(
+    "Generated explanations:",
+    explanations
+  );
+};
+
+  useEffect(() => {
+  if (demo) return;
+
+
+  const loadExplanations = async () => {
+
+    const { data, error } = await supabase
+      .from("ai_explanations")
+      .select(`
+        *,
+        pay_gap_analyses (
+          id,
+          pay_gap_percent,
+          job_group_id,
+          job_groups (
+            group_name
+          )
+        )
+      `);
+
+
+    if (error) {
+      console.error(
+        "Failed to load explanations:",
+        error
+      );
+      return;
+    }
+
+
+    console.log(
+      "AI explanations:",
+      data
+    );
+
+
+    if (!data || data.length === 0) {
+
+      await generateMissingExplanations();
+
+      // reload after generation
+      loadExplanations();
+
+      return;
+    }
+
+
+    setRealExplanations(data as any);
+  };
+
+
+  loadExplanations();
+
+}, [demo]);
+
+  const [dbExplanations, setDbExplanations] =
+  useState<ExplanationData[]>([]);
 
   const stats = useMemo(() => {
     const accepted = Object.values(statuses).filter(
