@@ -188,6 +188,34 @@ function ExplanationsPage() {
 
     console.log("Analyses needing explanation:", analyses);
 
+    
+
+    const { data: existingExplanations, error: existingError } =
+  await supabase
+    .from("ai_explanations")
+    .select("pay_gap_analysis_id");
+
+
+if (existingError) {
+  console.error(
+    "Failed fetching existing explanations:",
+    existingError
+  );
+  return;
+}
+
+
+console.log(
+  "Existing explanations:",
+  existingExplanations
+);
+
+const existingIds = new Set(
+  existingExplanations?.map(
+    (item) => item.pay_gap_analysis_id
+  ) || []
+);
+
 
   if (error) {
     console.error(
@@ -203,7 +231,27 @@ function ExplanationsPage() {
   }
 
 
-  const explanations = analyses.map((analysis: any) => ({
+  const missingAnalyses = analyses.filter(
+  (analysis:any) =>
+    !existingIds.has(analysis.id)
+);
+
+
+console.log(
+  "Missing explanations:",
+  missingAnalyses
+);
+
+
+if (missingAnalyses.length === 0) {
+  console.log(
+    "All explanations already exist"
+  );
+  return;
+}
+
+
+const explanations = missingAnalyses.map((analysis: any) => ({
     pay_gap_analysis_id: analysis.id,
 
     explanation:
@@ -285,18 +333,65 @@ function ExplanationsPage() {
     );
 
 
-    if (!data || data.length === 0) {
+    await generateMissingExplanations();
 
-      await generateMissingExplanations();
+    const { data: refreshedData } = await supabase
+      .from("ai_explanations")
+      .select(`
+        *,
+        pay_gap_analyses (
+          id,
+          pay_gap_percent,
+          job_group_id,
+          job_groups (
+            group_name
+          )
+        )
+      `);
 
-      // reload after generation
-      loadExplanations();
-
+    if (!refreshedData) {
       return;
     }
 
+    const formatted = refreshedData.map((item:any) => ({
+      status: item.status || "pending",
+      id: item.id,
 
-    setRealExplanations(data as any);
+      category:
+        item.pay_gap_analyses?.job_groups?.group_name ||
+        "Unknown group",
+
+      gapPct:
+        item.pay_gap_analyses?.pay_gap_percent || 0,
+
+      factors: [],
+
+      dataPoints: [],
+
+      confidence:
+        item.confidence_tag === "high"
+          ? 90
+          : item.confidence_tag === "medium"
+          ? 70
+          : 50,
+
+      limitations: [
+        "AI generated explanation requires human validation"
+      ],
+
+      draft:
+        item.explanation
+    }));
+
+    setRealExplanations(formatted);
+    setStatuses(
+  Object.fromEntries(
+    formatted.map((exp:any) => [
+      exp.id,
+      exp.status
+    ])
+  )
+);
   };
 
 
@@ -320,14 +415,38 @@ function ExplanationsPage() {
     const flagged = Object.values(statuses).filter(
       (s) => s === "review",
     ).length;
-    const pending = EXPLANATIONS.filter(
+    const explanationsSource =
+  demo ? EXPLANATIONS : realExplanations;
+
+
+const pending = explanationsSource.filter(
       (e) => !statuses[e.id] || statuses[e.id] === "pending",
     ).length;
     return { accepted, rejected, edited, flagged, pending };
   }, [statuses]);
 
-  const updateStatus = (id: string, status: DraftStatus) => {
+  const updateStatus = async (
+  id: string,
+  status: DraftStatus
+) => {
     setStatuses((prev) => ({ ...prev, [id]: status }));
+    const { error } = await supabase
+  .from("ai_explanations")
+  .update({
+    status,
+    reviewed_at: new Date().toISOString(),
+  })
+  .eq("id", id);
+
+
+if (error) {
+  console.error(
+    "Failed updating explanation status:",
+    error
+  );
+  toast.error("Failed updating review status");
+  return;
+}
     const labels: Record<DraftStatus, string> = {
       pending: "reset to pending",
       accepted: "accepted",
@@ -400,7 +519,7 @@ function ExplanationsPage() {
         </div>
         <div className="flex-1">
           <div className="text-sm font-medium">
-            AI has drafted {EXPLANATIONS.length} explanations for categories
+            AI has drafted {demo ? EXPLANATIONS.length : realExplanations.length} explanations for categories
             above the 5% threshold
           </div>
           <div className="mt-0.5 text-xs text-muted-foreground">
@@ -461,7 +580,7 @@ function ExplanationsPage() {
 
       {/* Explanation cards */}
       <div className="space-y-4">
-        {EXPLANATIONS.map((exp, i) => {
+        {(demo ? EXPLANATIONS : realExplanations).map((exp, i) => {
           const status = statuses[exp.id] ?? "pending";
           return (
             <motion.div
