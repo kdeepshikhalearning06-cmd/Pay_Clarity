@@ -169,14 +169,22 @@ function GenerateReportPage() {
 const [loading, setLoading] = useState(false);
 
   const stats = useMemo(() => {
-    const totalEmployees = 184;
+    const totalEmployees =
+      demo || !assessment
+        ? 184
+        : Number(
+            assessment?.total_employees ??
+            assessment?.employee_count ??
+            assessment?.employees?.length ??
+            184,
+          );
     const overallGap = 4.7;
     const medianGap = 3.9;
     const countriesCount = 4;
     const readiness =
-  demo || !assessment
-    ? 78
-    : Number(assessment.readiness_score ?? 0);
+      demo || !assessment
+        ? 78
+        : Number(assessment.readiness_score ?? 0);
     const aboveThreshold = DEMO_CATEGORY_FINDINGS.filter(
       (c) => c.threshold !== "healthy",
     ).length;
@@ -209,7 +217,7 @@ const [loading, setLoading] = useState(false);
       completionPct,
       remainingBlockers,
     };
-  }, []);
+  }, [demo, assessment]);
 
 useEffect(() => {
   // Demo Mode should continue using demo data

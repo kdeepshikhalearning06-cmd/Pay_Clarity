@@ -89,6 +89,32 @@ type JobCategory = {
   aiObservation: string;
 };
 
+type AnalysisRow = {
+  upload_id: string;
+  job_group_id: string;
+  male_average_salary: number;
+  female_average_salary: number;
+  pay_gap_percent: number;
+  employee_count: number;
+  exceeds_threshold: boolean;
+  threshold_percent: number;
+  analysis_status: string;
+};
+
+type GapStats = {
+  totalEmployees: number;
+  totalCategories: number;
+  aboveThreshold: number;
+  requireExplanations: number;
+  requireHumanReview: number;
+  overallGap: number;
+  medianGap: number;
+  meanGap: number;
+  countriesCount: number;
+  readiness: number;
+  bonusGap: number;
+};
+
 const CATEGORIES: JobCategory[] = [
   {
     id: "cat_1",
@@ -282,9 +308,7 @@ function GapAnalysisPage() {
 
   useEffect(() => {
     const loadGroups = async () => {
-      const savedGroups = localStorage.getItem(
-        "payclarity_groups"
-      );
+      const savedGroups = localStorage.getItem("payclarity_groups");
 
       if (!savedGroups) return;
 
@@ -305,218 +329,152 @@ function GapAnalysisPage() {
 
       const groups = JSON.parse(savedGroups);
 
-      console.log(
-        "Gap Analysis Groups:",
-        groups
+      console.log("Gap Analysis Groups:", groups);
+
+      const { data: dbGroups, error: groupsError } = await supabase
+        .from("job_groups")
+        .select("*")
+        .eq("upload_id", uploadId);
+
+      if (groupsError) {
+        console.error(groupsError);
+        return;
+      }
+
+      console.table(
+        dbGroups?.map((g: any) => ({
+          id: g.id,
+          group_name: g.group_name,
+        })),
       );
 
-    const { data: dbGroups, error: groupsError } = await supabase
-  .from("job_groups")
-  .select("*")
-  .eq("upload_id", uploadId);
+      const mappedCategories: JobCategory[] = groups.map(
+        (g: any, index: number): JobCategory => {
+          const groupEmployees = (employeeData || []).filter(
+            (emp: any) => g.originalTitles?.includes(emp.job_title),
+          );
 
-if (groupsError) {
-  console.error(groupsError);
-  return;
-}
+          const femaleEmployees = groupEmployees.filter(
+            (emp: any) => emp.gender === "Female",
+          );
 
-console.table(
-  dbGroups?.map((g) => ({
-    id: g.id,
-    group_name: g.group_name,
-  }))
-);
+          const maleEmployees = groupEmployees.filter(
+            (emp: any) => emp.gender === "Male",
+          );
 
+          const femaleMedian = getMedian(femaleEmployees);
+          const maleMedian = getMedian(maleEmployees);
 
-const mappedCategories = groups.map(
-  (g: any, index: number) => {
+          const medianGap = calculateGap(maleMedian, femaleMedian);
 
-    const groupEmployees = employeeData.filter(
-      (emp: any) =>
-        g.originalTitles?.includes(emp.job_title)
-    );
+          const meanGap = calculateGap(
+            getMean(maleEmployees),
+            getMean(femaleEmployees),
+          );
 
+          const salaryValues = groupEmployees.map(normalizeSalary);
 
-    const femaleEmployees = groupEmployees.filter(
-      (emp: any) =>
-        emp.gender === "Female"
-    );
+          const averageSalary = salaryValues.length
+            ? salaryValues.reduce((a: number, b: number) => a + b, 0) /
+              salaryValues.length
+            : 0;
 
+          const outliers = groupEmployees.filter((emp: any) => {
+            const salary = normalizeSalary(emp);
 
-    const maleEmployees = groupEmployees.filter(
-      (emp: any) =>
-        emp.gender === "Male"
-    );
+            return salary > averageSalary * 2 || salary < averageSalary * 0.5;
+          }).length;
 
+          return {
+            id: String(index),
 
-    const femaleMedian =
-      getMedian(femaleEmployees);
+            name: g.suggestedGrouping || "Unknown",
 
-    const maleMedian =
-      getMedian(maleEmployees);
+            employees: groupEmployees.length,
 
+            femaleMedian,
 
-    const medianGap = calculateGap(
-  maleMedian,
-  femaleMedian
-);
+            maleMedian,
 
+            femaleMean: getMean(femaleEmployees),
 
-const meanGap = calculateGap(
-  getMean(maleEmployees),
-  getMean(femaleEmployees)
-);
+            maleMean: getMean(maleEmployees),
 
-const salaryValues =
- groupEmployees.map(
-   normalizeSalary
- );
+            gapPct: medianGap === null ? 0 : Number(medianGap.toFixed(2)),
 
+            thresholdStatus:
+              maleEmployees.length === 0 || femaleEmployees.length === 0
+                ? "cannot_calculate"
+                : medianGap !== null && medianGap > 5
+                  ? "requires_explanation"
+                  : "healthy",
 
-const averageSalary =
- salaryValues.length
- ?
- salaryValues.reduce(
-   (a,b)=>a+b,
-   0
- )
- /
- salaryValues.length
- :
- 0;
+            explanationStatus: "none",
 
+            countries: [],
 
-const outliers =
- groupEmployees.filter(
-   (emp:any)=>{
+            departments: [],
 
-    const salary =
-      normalizeSalary(emp);
-
-
-    return (
-      salary >
-      averageSalary * 2
-      ||
-      salary <
-      averageSalary * 0.5
-    );
-
-   }
- ).length;
-
-    return {
-      id: String(index),
-
-      name:
-        g.suggestedGrouping || "Unknown",
-
-      employees:
-        groupEmployees.length,
-
-
-      femaleMedian,
-
-      maleMedian,
-
-
-      femaleMean:
-        getMean(femaleEmployees),
-
-      maleMean:
-        getMean(maleEmployees),
-
-
-      gapPct:
-        medianGap === null
-          ? 0
-          : Number(medianGap.toFixed(2)),
-
-
-      thresholdStatus:
-maleEmployees.length === 0 ||
-femaleEmployees.length === 0
-  ? "cannot_calculate"
-  : medianGap !== null && medianGap > 5
-    ? "requires_explanation"
-    : "healthy",
-
-
-      explanationStatus:
-        "none",
-
-
-      countries: [],
-
-      departments: [],
-
-
-      aiObservation:
-  maleEmployees.length === 0 || femaleEmployees.length === 0
-    ? `Insufficient gender data is available to calculate a reliable pay gap for this comparable work category.`
-    : `d in the "${g.suggestedGrouping}" comparable work categoryA total of ${groupEmployees.length} employees were analysed.
+            aiObservation:
+              maleEmployees.length === 0 || femaleEmployees.length === 0
+                ? `Insufficient gender data is available to calculate a reliable pay gap for this comparable work category.`
+                : `A total of ${groupEmployees.length} employees were analysed in the "${g.suggestedGrouping}" comparable work category.
 
 Female median salary: €${femaleMedian.toLocaleString()}
 Male median salary: €${maleMedian.toLocaleString()}
 
 The calculated median gender pay gap is ${
-  medianGap === null
-    ? "Not available"
-    : medianGap.toFixed(1)
-}%.
+                    medianGap === null ? "Not available" : medianGap.toFixed(1)
+                  }%.
 
 ${
   medianGap !== null && medianGap > 5
     ? "This exceeds the EU Pay Transparency Directive threshold of 5%. HR should review objective factors such as seniority, experience, performance ratings, job level, or market-based pay before publishing the report."
     : "This is below the EU Pay Transparency Directive threshold of 5%. No immediate compliance concerns were identified for this group."
-}`
-    };
-  }
-);
-
-const analysisRows = mappedCategories
-  .map((category: any) => {
-    const dbGroup = dbGroups?.find(
-      (g) => g.group_name === category.name
-    );
-
-    if (!dbGroup) {
-      console.warn(
-        "No matching job group found:",
-        category.name
+}`,
+          };
+        },
       );
-      return null;
-    }
 
-    return {
-      upload_id: uploadId,
-      job_group_id: dbGroup.id,
-      male_average_salary: category.maleMean,
-      female_average_salary: category.femaleMean,
-      pay_gap_percent: category.gapPct,
-      employee_count: category.employees,
-      exceeds_threshold:
-        category.thresholdStatus !== "healthy",
-      threshold_percent: 5,
-      analysis_status: "completed",
-    };
-  })
-  .filter(Boolean);
+      const analysisRows: AnalysisRow[] = mappedCategories
+        .map((category: JobCategory): AnalysisRow | null => {
+          const dbGroup = dbGroups?.find(
+            (g: any) => g.group_name === category.name,
+          );
 
-  console.table(analysisRows);
+          if (!dbGroup) {
+            console.warn("No matching job group found:", category.name);
+            return null;
+          }
 
-  const { data, error: analysisError } = await supabase
-  .from("pay_gap_analyses")
-  .upsert(analysisRows, {
-    onConflict: "upload_id,job_group_id",
-  })
-  .select();
+          return {
+            upload_id: uploadId,
+            job_group_id: dbGroup.id,
+            male_average_salary: category.maleMean,
+            female_average_salary: category.femaleMean,
+            pay_gap_percent: category.gapPct ?? 0,
+            employee_count: category.employees,
+            exceeds_threshold: category.thresholdStatus !== "healthy",
+            threshold_percent: 5,
+            analysis_status: "completed",
+          };
+        })
+        .filter((row): row is AnalysisRow => row !== null);
 
-if (analysisError) {
-  console.error("Failed to save gap analysis:", analysisError);
-} else {
-  console.log("Gap analysis saved:", data);
-}
+      console.table(analysisRows);
+
+      const { data, error: analysisError } = await supabase
+        .from("pay_gap_analyses")
+        .upsert(analysisRows, {
+          onConflict: "upload_id,job_group_id",
+        })
+        .select();
+
+      if (analysisError) {
+        console.error("Failed to save gap analysis:", analysisError);
+      } else {
+        console.log("Gap analysis saved:", data);
+      }
 
       setCategories(mappedCategories);
     };
@@ -526,24 +484,24 @@ if (analysisError) {
 
   const displayedCategories = demo ? CATEGORIES : categories;
 
-  const [selectedCategory, setSelectedCategory] =
-    useState<JobCategory | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<JobCategory | null>(
+    null,
+  );
 
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const [statusFilter, setStatusFilter] =
-    useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
-  const [notes, setNotes] =
-    useState<Record<string, string>>({});
+  const [search, setSearch] = useState("");
 
-  const [activeNoteId, setActiveNoteId] =
-    useState<string | null>(null);
+  const [notes, setNotes] = useState<Record<string, string>>({});
+
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
 
   const [explanationStatuses, setExplanationStatuses] =
-    useState<Record<string, ExplanationStatus>>({});
+  useState<Record<string, ExplanationStatus>>({});
 
-  const stats = useMemo(() => {
+  const stats = useMemo<GapStats>(() => {
     const totalEmployees = displayedCategories.reduce(
       (s, c) => s + c.employees,
       0,
@@ -558,216 +516,99 @@ if (analysisError) {
     const requireHumanReview = displayedCategories.filter(
       (c) => c.thresholdStatus === "joint_assessment",
     ).length;
-    
+
     const allEmployees = employees;
 
+    const femaleEmployees = allEmployees.filter((e) => e.gender === "Female");
 
-const femaleEmployees =
-  allEmployees.filter(
-    (e) => e.gender === "Female"
-  );
+    const maleEmployees = allEmployees.filter((e) => e.gender === "Male");
 
+    const getSalary = (employee: any) => {
+      const salary = Number(employee.annual_base_salary || 0);
 
-const maleEmployees =
-  allEmployees.filter(
-    (e) => e.gender === "Male"
-  );
+      const fte = Number(employee.fte_percent || 100);
 
+      if (!fte) return 0;
 
-const getSalary = (employee:any) => {
+      return salary / (fte / 100);
+    };
 
-  const salary =
-    Number(employee.annual_base_salary || 0);
+    const companyMean = (list: any[]) => {
+      if (!list.length) return 0;
 
-  const fte =
-    Number(employee.fte_percent || 100);
+      return list.reduce((sum, e) => sum + getSalary(e), 0) / list.length;
+    };
 
-  if (!fte) return 0;
+    const companyMedian = (list: any[]) => {
+      if (!list.length) return 0;
 
-  return salary / (fte / 100);
+      const salaries = list.map(getSalary).sort((a, b) => a - b);
 
-};
+      const middle = Math.floor(salaries.length / 2);
 
+      if (salaries.length % 2) {
+        return salaries[middle];
+      }
 
-const companyMean = (
-  list:any[]
-) => {
+      return (salaries[middle - 1] + salaries[middle]) / 2;
+    };
 
-  if (!list.length) return 0;
+    const companyMaleMean = companyMean(maleEmployees);
 
-  return (
-    list.reduce(
-      (sum,e)=>sum + getSalary(e),
-      0
-    )
-    /
-    list.length
-  );
+    const companyFemaleMean = companyMean(femaleEmployees);
 
-};
+    const companyMaleMedian = companyMedian(maleEmployees);
 
+    const companyFemaleMedian = companyMedian(femaleEmployees);
 
-const companyMedian = (
-  list:any[]
-)=>{
+    const getBonus = (employee: any) => {
+      return Number(employee.bonus || 0);
+    };
 
-  if (!list.length) return 0;
+    const companyBonusMean = (list: any[]) => {
+      if (!list.length) return 0;
 
+      return list.reduce((sum, e) => sum + getBonus(e), 0) / list.length;
+    };
 
-  const salaries =
-    list
-    .map(getSalary)
-    .sort((a,b)=>a-b);
+    const maleBonus = companyBonusMean(maleEmployees);
 
+    const femaleBonus = companyBonusMean(femaleEmployees);
 
-  const middle =
-    Math.floor(
-      salaries.length/2
-    );
+    const bonusGap = maleBonus
+      ? ((maleBonus - femaleBonus) / maleBonus) * 100
+      : 0;
 
+    const companyMeanGap = companyMaleMean
+      ? ((companyMaleMean - companyFemaleMean) / companyMaleMean) * 100
+      : 0;
 
-  if(
-    salaries.length % 2
-  ){
-    return salaries[middle];
-  }
+    const companyMedianGap = companyMaleMedian
+      ? ((companyMaleMedian - companyFemaleMedian) / companyMaleMedian) * 100
+      : 0;
 
-
-  return (
-    salaries[middle-1]
-    +
-    salaries[middle]
-  ) / 2;
-
-};
-
-
-const companyMaleMean =
-  companyMean(maleEmployees);
-
-
-const companyFemaleMean =
-  companyMean(femaleEmployees);
-
-
-const companyMaleMedian =
-  companyMedian(maleEmployees);
-
-
-const companyFemaleMedian =
-  companyMedian(femaleEmployees);
-
-
-const companyMeanGap = companyMaleMean - companyFemaleMean;
-
-const getBonus = (employee:any) => {
-
-  return Number(
-    employee.bonus || 0
-  );
-
-};
-
-
-const companyBonusMean = (
-  list:any[]
-)=>{
-
-  if(!list.length)
-    return 0;
-
-
-  return (
-    list.reduce(
-      (sum,e)=>
-        sum + getBonus(e),
-      0
-    )
-    /
-    list.length
-  );
-
-};
-
-
-const maleBonus =
-  companyBonusMean(
-    maleEmployees
-  );
-
-
-const femaleBonus =
-  companyBonusMean(
-    femaleEmployees
-  );
-
-
-const bonusGap =
-  maleBonus
-  ?
-  (
-    (
-      maleBonus
-      -
-      femaleBonus
-    )
-    /
-    maleBonus
-  )
-  *100
-  :
-  0;
-  
-  companyMaleMean
-  ?
-  (
-    (
-      companyMaleMean
-      -
-      companyFemaleMean
-    )
-    /
-    companyMaleMean
-  )
-  *100
-  :
-  0;
-
-
-const companyMedianGap =
-  companyMaleMedian
-  ?
-  (
-    (
-      companyMaleMedian
-      -
-      companyFemaleMedian
-    )
-    /
-    companyMaleMedian
-  )
-  *100
-  :
-  0;
-    
     const overallGap =
-  displayedCategories.length > 0
-    ? displayedCategories.reduce(
-        (sum, c) => sum + (c.gapPct !== null ? c.gapPct : 0),
-        0
-      ) / displayedCategories.length
-    : 0;
+      displayedCategories.length > 0
+        ? displayedCategories.reduce(
+            (sum, c) => sum + (c.gapPct !== null ? c.gapPct : 0),
+            0,
+          ) / displayedCategories.length
+        : 0;
 
-const medianGap = overallGap;
+    const medianGap = overallGap;
 
-const meanGap = overallGap;
+    const meanGap = overallGap;
+
     const countries = new Set<string>();
     displayedCategories.forEach((c) =>
       c.countries.forEach((co) => countries.add(co)),
     );
-    const readiness = Math.round(
-      ((totalCategories - requireHumanReview) / totalCategories) * 100,
-    );
+    const readiness = totalCategories
+      ? Math.round(
+          ((totalCategories - requireHumanReview) / totalCategories) * 100,
+        )
+      : 0;
+
     return {
       totalEmployees,
       totalCategories,
@@ -779,93 +620,111 @@ const meanGap = overallGap;
       meanGap,
       countriesCount: countries.size,
       readiness,
-      bonusGap:
- Number(
-   bonusGap.toFixed(2)
- ),
+      bonusGap: Number(bonusGap.toFixed(2)),
     };
-  }, [displayedCategories]);
+  }, [displayedCategories, employees]);
+
+  useEffect(() => {
+    if (demo) return;
+
+    const uploadId = localStorage.getItem("currentUploadId");
+    if (!uploadId) return;
+
+    const updateAssessment = async () => {
+      const { error } = await supabase
+        .from("assessments")
+        .update({
+          readiness_score: stats.readiness,
+          overall_gap: Number(stats.overallGap.toFixed(2)),
+          median_gap: Number(stats.medianGap.toFixed(2)),
+          total_employees: stats.totalEmployees,
+          above_threshold: stats.aboveThreshold,
+          missing_explanations: stats.requireExplanations,
+          joint_assessments: stats.requireHumanReview,
+        })
+        .eq("upload_id", uploadId);
+
+      if (error) {
+        console.error("Assessment update failed:", error);
+      } else {
+        console.log("Assessment updated");
+      }
+    };
+
+    updateAssessment();
+  }, [stats, demo]);
 
   const filteredCategories = useMemo(
     () =>
-      statusFilter === "all"
-        ? displayedCategories
-        : displayedCategories.filter(
-            (c) => c.thresholdStatus === statusFilter,
-          ),
-    [statusFilter, displayedCategories],
+      displayedCategories
+        .filter((c) =>
+          statusFilter === "all" ? true : c.thresholdStatus === statusFilter,
+        )
+        .filter((c) =>
+          search === ""
+            ? true
+            : c.name.toLowerCase().includes(search.toLowerCase()),
+        ),
+    [statusFilter, search, displayedCategories],
   );
 
-  const openDrawer = (cat: JobCategory) => {
-    setSelectedCategory(cat);
+  const openDrawer = (category: JobCategory) => {
+    setSelectedCategory(category);
     setDrawerOpen(true);
+    setActiveNoteId(category.id);
   };
 
-  const closeDrawer = () => {
-    setDrawerOpen(false);
-    setSelectedCategory(null);
-    setActiveNoteId(null);
+  const handleSaveNote = (id: string, value: string) => {
+    setNotes((prev) => ({ ...prev, [id]: value }));
+    toast.success("Note saved");
   };
 
-  const updateExplanationStatus = (
-    catId: string,
-    status: ExplanationStatus,
-  ) => {
-    setExplanationStatuses((prev) => ({ ...prev, [catId]: status }));
-    const labels: Record<ExplanationStatus, string> = {
-      none: "reset",
-      drafted: "marked as drafted",
-      reviewed: "marked as reviewed",
-      flagged: "flagged for human review",
-    };
-    toast.success(`Category ${labels[status]}`);
+  const handleFlagForReview = (id: string) => {
+    setExplanationStatuses((prev) => ({ ...prev, [id]: "flagged" }));
+    toast.success("Category flagged for review");
   };
 
-  const handleAddNote = (catId: string) => {
-    const note = notes[catId]?.trim();
-    if (!note) {
-      toast("Note is empty");
-      return;
-    }
-    toast.success("Note saved to category");
-    setActiveNoteId(null);
-  };
-
-  const handleExportFindings = () => {
+  const handleExportCsv = () => {
     const rows = [
       [
-        "Job Category",
+        "Job category",
         "Employees",
-        "Female Median",
-        "Male Median",
+        "Female median",
+        "Male median",
         "Gap %",
-        "Threshold Status",
-        "Explanation Status",
+        "Threshold",
+        "Explanation status",
       ],
       ...displayedCategories.map((c) => [
         c.name,
         String(c.employees),
         String(c.femaleMedian),
         String(c.maleMedian),
-        `${c.gapPct}%`,
-        thresholdLabel(c.thresholdStatus),
-        explanationLabel(
-          explanationStatuses[c.id] ?? c.explanationStatus,
-        ),
+        c.gapPct === null ? "" : `${c.gapPct.toFixed(1)}%`,
+        c.thresholdStatus,
+        explanationStatuses[c.id] ?? c.explanationStatus,
       ]),
     ];
+
     const csv = rows
-      .map((r) => r.map((v) => `"${v.replace(/"/g, '""')}"`).join(","))
+      .map((row) =>
+        row
+          .map((v) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v))
+          .join(","),
+      )
       .join("\n");
+
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "gap-analysis-findings.csv";
+    a.download = "gap-analysis.csv";
+    document.body.appendChild(a);
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    toast.success("Findings exported as CSV");
+
+    toast.success("CSV export ready");
   };
 
   if (!hasData) {
@@ -881,18 +740,15 @@ const meanGap = overallGap;
   }
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="mx-auto max-w-6xl">
       <PageHeader
         title="Gap analysis"
-        description="Identify which job groups require investigation under EU Pay Transparency requirements"
+        description="Gender pay gap analysis across grouped job categories"
         actions={
           <div className="flex gap-2">
-            <Button variant="outline" onClick={handleExportFindings}>
-              <Download className="mr-1 h-4 w-4" /> Export findings
-            </Button>
             <Button variant="outline" asChild>
               <Link to="/app/grouping">
-                <ArrowLeft className="mr-1 h-4 w-4" /> AI grouping
+                <ArrowLeft className="mr-1 h-4 w-4" /> Job grouping
               </Link>
             </Button>
           </div>
@@ -903,70 +759,24 @@ const meanGap = overallGap;
         <WorkflowStrip current="gap" />
       </div>
 
-      {/* Compliance alert */}
       <div className="mb-6">
         <ComplianceAlert
-          tone="warning"
-          title="5% threshold detection active"
-          message="Germany requires additional review when unexplained pay differences exceed 5%. Categories flagged as 'Joint assessment risk' may require a formal joint pay assessment with works councils."
-          linkTo="/app/compliance/DE"
-          linkLabel="View Germany compliance guide →"
+          tone="info"
+          title="Pay gap analysis is a starting point, not a final judgment"
+          message="Categories above the 5% threshold require documented objective justification before they can be included in compliance reporting."
+          linkTo="/app/compliance"
+          linkLabel="View compliance library →"
         />
       </div>
 
-      {/* Top KPI cards */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      {/* KPI cards */}
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {[
-          {
-            label: "Overall gap",
-            value: `${stats.overallGap}%`,
-            icon: TrendingDown,
-            tone:
-              stats.overallGap >= 5
-                ? "text-warning"
-                : "text-success",
-          },
-          {
-            label: "Median gap",
-            value: `${stats.medianGap}%`,
-            icon: TrendingDown,
-            tone:
-              stats.medianGap >= 5
-                ? "text-warning"
-                : "text-success",
-          },
-          {
-            label: "Mean gap",
-            value: `${stats.meanGap}%`,
-            icon: TrendingDown,
-            tone:
-              stats.meanGap >= 5
-                ? "text-warning"
-                : "text-success",
-          },
-          {
-            label: "Employees",
-            value: stats.totalEmployees.toLocaleString(),
-            icon: Users,
-            tone: "text-info",
-          },
-          {
-            label: "Countries",
-            value: String(stats.countriesCount),
-            icon: Building2,
-            tone: "text-info",
-          },
-          {
-            label: "Readiness",
-            value: `${stats.readiness}%`,
-            icon: ShieldCheck,
-            tone:
-              stats.readiness >= 90
-                ? "text-success"
-                : stats.readiness >= 70
-                  ? "text-warning"
-                  : "text-destructive",
-          },
+          { label: "Employees analysed", value: stats.totalEmployees, icon: Users, tone: "text-info" },
+          { label: "Categories", value: stats.totalCategories, icon: Building2, tone: "text-info" },
+          { label: "Above threshold", value: stats.aboveThreshold, icon: AlertTriangle, tone: "text-warning" },
+          { label: "Require explanation", value: stats.requireExplanations, icon: AlertCircle, tone: "text-warning" },
+          { label: "Joint assessment", value: stats.requireHumanReview, icon: Flag, tone: "text-destructive" },
         ].map((m, i) => (
           <motion.div
             key={m.label}
@@ -988,161 +798,123 @@ const meanGap = overallGap;
         ))}
       </div>
 
-      {/* Company summary section */}
+      {/* Overall gap summary */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
-        className="mb-6 rounded-2xl border border-border/60 bg-card p-5 shadow-[var(--shadow-card)]"
+        className="mb-6 grid gap-4 sm:grid-cols-3 rounded-2xl border border-border/60 bg-card p-5 shadow-[var(--shadow-card)]"
       >
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          <ShieldCheck className="h-3.5 w-3.5 text-teal" /> Company summary
+        <div>
+          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+            <TrendingDown className="h-3.5 w-3.5 text-teal" /> Overall gap
+          </div>
+          <div className="mt-1 font-display text-2xl font-semibold tabular-nums">
+            {stats.overallGap.toFixed(1)}%
+          </div>
         </div>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          {[
-            {
-              label: "Employees analysed",
-              value: stats.totalEmployees.toLocaleString(),
-              tone: "text-foreground",
-            },
-            {
-              label: "Job categories",
-              value: String(stats.totalCategories),
-              tone: "text-foreground",
-            },
-            {
-              label: "Above threshold",
-              value: String(stats.aboveThreshold),
-              tone: "text-warning",
-            },
-            {
-              label: "Need explanations",
-              value: String(stats.requireExplanations),
-              tone: "text-warning",
-            },
-            {
-              label: "Need human review",
-              value: String(stats.requireHumanReview),
-              tone: "text-destructive",
-            },
-          ].map((s) => (
-            <div
-              key={s.label}
-              className="rounded-xl border border-border/60 bg-background p-4"
-            >
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                {s.label}
-              </div>
-              <div
-                className={cn(
-                  "mt-1.5 font-display text-xl font-semibold tabular-nums",
-                  s.tone,
-                )}
-              >
-                {s.value}
-              </div>
-            </div>
-          ))}
+        <div>
+          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+            <ShieldCheck className="h-3.5 w-3.5 text-teal" /> Readiness
+          </div>
+          <div className="mt-1 font-display text-2xl font-semibold tabular-nums">
+            {stats.readiness}%
+          </div>
+        </div>
+        <div>
+          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+            <TrendingUp className="h-3.5 w-3.5 text-teal" /> Bonus gap
+          </div>
+          <div className="mt-1 font-display text-2xl font-semibold tabular-nums">
+            {stats.bonusGap}%
+          </div>
         </div>
       </motion.div>
 
-      {/* Job category analysis table */}
-      <div className="rounded-2xl border border-border/60 bg-card shadow-[var(--shadow-card)]">
-        <div className="flex flex-wrap items-center gap-2 border-b border-border/60 p-4">
-          <div className="text-sm font-medium">Job category analysis</div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="h-9 w-[180px]">
-              <SelectValue placeholder="Filter by status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="healthy">Healthy</SelectItem>
-              <SelectItem value="requires_explanation">
-                Requires explanation
-              </SelectItem>
-              <SelectItem value="joint_assessment">
-                Joint assessment risk
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <div className="ml-auto text-xs text-muted-foreground tabular-nums">
-            {filteredCategories.length} of {displayedCategories.length} categories
-          </div>
-        </div>
+      {/* Toolbar */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <Input
+          placeholder="Search categories…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-9 w-[220px]"
+        />
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="h-9 w-[200px]">
+            <SelectValue placeholder="Filter by threshold" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All thresholds</SelectItem>
+            <SelectItem value="healthy">Healthy</SelectItem>
+            <SelectItem value="requires_explanation">Requires explanation</SelectItem>
+            <SelectItem value="joint_assessment">Joint assessment</SelectItem>
+            <SelectItem value="cannot_calculate">Cannot calculate</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="sm" className="ml-auto" onClick={handleExportCsv}>
+          <FileSpreadsheet className="mr-1 h-3.5 w-3.5" /> Export CSV
+        </Button>
+      </div>
 
+      {/* Category table */}
+      <div className="rounded-2xl border border-border/60 bg-card shadow-[var(--shadow-card)]">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
               <tr>
                 <th className="px-5 py-3 font-medium">Job category</th>
                 <th className="px-3 py-3 font-medium">Employees</th>
-                <th className="px-3 py-3 font-medium">F median</th>
-                <th className="px-3 py-3 font-medium">M median</th>
                 <th className="px-3 py-3 font-medium">Gap %</th>
                 <th className="px-3 py-3 font-medium">Threshold</th>
                 <th className="px-3 py-3 font-medium">Explanation</th>
-                <th className="px-5 py-3 text-right font-medium">Action</th>
+                <th className="px-5 py-3 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filteredCategories.map((c, i) => {
-                const expStatus =
-                  explanationStatuses[c.id] ?? c.explanationStatus;
+                const explanationStatus = explanationStatuses[c.id] ?? c.explanationStatus;
                 return (
                   <motion.tr
                     key={c.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: Math.min(i * 0.03, 0.3) }}
-                    className={cn(
-                      "cursor-pointer border-t border-border/60 transition-colors hover:bg-muted/30",
-                      c.thresholdStatus === "joint_assessment" &&
-                        "bg-destructive/[0.03]",
-                      c.thresholdStatus === "requires_explanation" &&
-                        "bg-warning/[0.03]",
-                    )}
+                    className="cursor-pointer border-t border-border/60 transition-colors hover:bg-muted/30"
                     onClick={() => openDrawer(c)}
                   >
                     <td className="px-5 py-3 font-medium">{c.name}</td>
-                    <td className="px-3 py-3 tabular-nums text-muted-foreground">
-                      {c.employees}
-                    </td>
-                    <td className="px-3 py-3 tabular-nums text-muted-foreground">
-                      €{c.femaleMedian.toLocaleString()}
-                    </td>
-                    <td className="px-3 py-3 tabular-nums text-muted-foreground">
-                      €{c.maleMedian.toLocaleString()}
-                    </td>
+                    <td className="px-3 py-3 tabular-nums">{c.employees}</td>
                     <td className="px-3 py-3">
-                      <span
-                        className={cn(
-                          "font-display font-semibold tabular-nums",
-                          c.gapPct !== null && c.gapPct >= 5
-                            ? "text-warning"
-                            : "text-success",
-                        )}
-                      >
-                        {c.gapPct !== null ? c.gapPct.toFixed(1) : "N/A"}%
-                      </span>
+                      {c.gapPct === null ? "—" : `${c.gapPct.toFixed(1)}%`}
                     </td>
                     <td className="px-3 py-3">
                       <ThresholdBadge status={c.thresholdStatus} />
                     </td>
                     <td className="px-3 py-3">
-                      <ExplanationBadge status={expStatus} />
+                      <ExplanationBadge status={explanationStatus} />
                     </td>
-                    <td
-                      className="px-5 py-3 text-right"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => openDrawer(c)}
-                      >
-                        Details{" "}
-                        <ChevronRight className="ml-0.5 h-3.5 w-3.5" />
-                      </Button>
+                    <td className="px-5 py-3">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleFlagForReview(c.id);
+                          }}
+                        >
+                          <Flag className="h-3.5 w-3.5 text-warning" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDrawer(c);
+                          }}
+                        >
+                          <ChevronRight className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </td>
                   </motion.tr>
                 );
@@ -1152,494 +924,163 @@ const meanGap = overallGap;
         </div>
       </div>
 
+      {/* Category details drawer */}
+      <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl">
+          <SheetHeader className="text-left">
+            <SheetTitle className="font-display text-xl">
+              {selectedCategory?.name}
+            </SheetTitle>
+            <SheetDescription>
+              {selectedCategory?.employees.toLocaleString()} employees analysed
+            </SheetDescription>
+          </SheetHeader>
+
+          {selectedCategory && (
+            <div className="mt-6 space-y-6">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-border/60 bg-background p-3">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Female median
+                  </div>
+                  <div className="mt-1 text-sm font-medium">
+                    €{selectedCategory.femaleMedian.toLocaleString()}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-background p-3">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Male median
+                  </div>
+                  <div className="mt-1 text-sm font-medium">
+                    €{selectedCategory.maleMedian.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-teal/30 bg-teal/5 p-4">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  <Bot className="h-3.5 w-3.5 text-teal" /> AI observation
+                </div>
+                <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+                  {selectedCategory.aiObservation}
+                </p>
+              </div>
+
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Objective factors to consider
+                </div>
+                <div className="mt-2 space-y-2">
+                  {OBJECTIVE_FACTORS.map((f) => (
+                    <div
+                      key={f.key}
+                      className="rounded-lg border border-border/60 bg-background p-3"
+                    >
+                      <div className="text-sm font-medium">{f.label}</div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">
+                        {f.description}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  <StickyNote className="h-3.5 w-3.5 text-teal" /> Notes
+                </div>
+                <Textarea
+                  className="mt-2 min-h-[100px]"
+                  value={notes[selectedCategory.id] ?? ""}
+                  onChange={(e) =>
+                    setNotes((prev) => ({
+                      ...prev,
+                      [selectedCategory.id]: e.target.value,
+                    }))
+                  }
+                  placeholder="Add internal notes about this category…"
+                />
+                <div className="mt-2 flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="hero"
+                    onClick={() =>
+                      handleSaveNote(
+                        selectedCategory.id,
+                        notes[selectedCategory.id] ?? "",
+                      )
+                    }
+                  >
+                    Save note
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleFlagForReview(selectedCategory.id)}
+                  >
+                    <Flag className="mr-1 h-3.5 w-3.5" /> Flag for review
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
       {/* Bottom navigation */}
       <div className="mt-6 flex items-center justify-between">
         <Button variant="outline" asChild>
           <Link to="/app/grouping">
-            <ArrowLeft className="mr-1 h-4 w-4" /> Back to AI grouping
+            <ArrowLeft className="mr-1 h-4 w-4" /> Back to job grouping
           </Link>
         </Button>
         <Button variant="hero" asChild>
           <Link to="/app/explanations">
-            Continue to AI explanations{" "}
-            <ArrowRight className="ml-1 h-4 w-4" />
+            Continue to AI explanations <ArrowRight className="ml-1 h-4 w-4" />
           </Link>
         </Button>
       </div>
-
-      {/* Quick access to Human Review */}
-      <div className="mt-4 flex items-center justify-between rounded-xl border border-teal/30 bg-teal/5 p-3">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <ClipboardCheck className="h-4 w-4 text-teal" />
-          5 explanations are waiting for human review and approval.
-        </div>
-        <Button size="sm" variant="ghost" asChild>
-          <Link to="/app/human-review">
-            Go to Human Review{" "}
-            <ArrowRight className="ml-1 h-3.5 w-3.5" />
-          </Link>
-        </Button>
-      </div>
-
-      {/* Drill-down drawer */}
-      <Sheet open={drawerOpen} onOpenChange={(v) => !v && closeDrawer()}>
-        <SheetContent
-          side="right"
-          className="w-full overflow-y-auto p-0 sm:max-w-2xl"
-        >
-          {selectedCategory && (
-            <DrawerContent
-              category={selectedCategory}
-              explanationStatus={
-                explanationStatuses[selectedCategory.id] ??
-                selectedCategory.explanationStatus
-              }
-              onExplanationStatus={(s) =>
-                updateExplanationStatus(selectedCategory.id, s)
-              }
-              note={notes[selectedCategory.id] ?? ""}
-              onNoteChange={(v) =>
-                setNotes((prev) => ({
-                  ...prev,
-                  [selectedCategory.id]: v,
-                }))
-              }
-              activeNoteId={activeNoteId}
-              onActiveNoteChange={(v) => setActiveNoteId(v)}
-              onSaveNote={() => handleAddNote(selectedCategory.id)}
-              onExport={() => handleExportFindings()}
-              onClose={closeDrawer}
-            />
-          )}
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }
 
-function DrawerContent({
-  category,
-  explanationStatus,
-  onExplanationStatus,
-  note,
-  onNoteChange,
-  activeNoteId,
-  onActiveNoteChange,
-  onSaveNote,
-  onExport,
-  onClose,
-}: {
-  category: JobCategory;
-  explanationStatus: ExplanationStatus;
-  onExplanationStatus: (s: ExplanationStatus) => void;
-  note: string;
-  onNoteChange: (v: string) => void;
-  activeNoteId: string | null;
-  onActiveNoteChange: (v: string | null) => void;
-  onSaveNote: () => void;
-  onExport: () => void;
-  onClose: () => void;
-}) {
-  return (
-    <>
-      <div className="sticky top-0 z-10 border-b border-border/60 bg-card/95 px-6 py-5 backdrop-blur">
-        <SheetHeader className="space-y-1 text-left">
-          <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-muted-foreground">
-            <LineChart className="h-3.5 w-3.5 text-teal" /> Gap analysis drill-down
-          </div>
-          <SheetTitle className="font-display text-xl">
-            {category.name}
-          </SheetTitle>
-          <SheetDescription>
-            {category.employees} employees ·{" "}
-            {category.countries.join(", ")} ·{" "}
-            {category.departments.join(", ")}
-          </SheetDescription>
-        </SheetHeader>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button
-            size="sm"
-            variant="hero"
-            asChild
-          >
-            <Link to="/app/explanations">
-              <Bot className="mr-1 h-3.5 w-3.5" /> Generate AI explanation
-            </Link>
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() =>
-              onExplanationStatus(
-                explanationStatus === "flagged" ? "none" : "flagged",
-              )
-            }
-          >
-            <Flag className="mr-1 h-3.5 w-3.5" /> Flag for human review
-          </Button>
-          <Button size="sm" variant="outline" onClick={onExport}>
-            <FileSpreadsheet className="mr-1 h-3.5 w-3.5" /> Export findings
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() =>
-              onActiveNoteChange(activeNoteId ? null : category.id)
-            }
-          >
-            <StickyNote className="mr-1 h-3.5 w-3.5" /> Add note
-          </Button>
-        </div>
-      </div>
-
-      <div className="space-y-6 p-6">
-        {/* Salary comparison */}
-        <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Stat
-            label="F median"
-            value={`€${category.femaleMedian.toLocaleString()}`}
-          />
-          <Stat
-            label="M median"
-            value={`€${category.maleMedian.toLocaleString()}`}
-          />
-          <Stat
-            label="F mean"
-            value={`€${category.femaleMean.toLocaleString()}`}
-          />
-          <Stat
-            label="M mean"
-            value={`€${category.maleMean.toLocaleString()}`}
-          />
-        </section>
-
-        {/* Gap percentage */}
-{(() => {
-  const gapPct = category.gapPct ?? 0;
-
-  return (
-    <section className="rounded-xl border border-border/60 bg-background p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-            Gender pay gap
-          </div>
-          <div
-            className={cn(
-              "mt-1 font-display text-3xl font-bold tabular-nums",
-              gapPct >= 5 ? "text-warning" : "text-success",
-            )}
-          >
-            {gapPct.toFixed(1)}%
-          </div>
-        </div>
-
-        <ThresholdBadge
-          status={category.thresholdStatus}
-          large
-        />
-      </div>
-
-      <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-muted">
-        <div
-          className={cn(
-            "h-full rounded-full",
-            gapPct >= 5 ? "bg-warning" : "bg-success",
-          )}
-          style={{
-            width: `${Math.min(Math.abs(gapPct) * 10, 100)}%`,
-          }}
-        />
-      </div>
-
-      <div className="mt-2 flex justify-between text-[10px] text-muted-foreground">
-        <span>0%</span>
-        <span className="font-medium text-warning">5% threshold</span>
-        <span>10%+</span>
-      </div>
-    </section>
-  );
-})()}
-
-        {/* Employee distribution */}
-        <section>
-          <SectionTitle icon={Users}>Employee distribution</SectionTitle>
-          <div className="mt-3 space-y-2">
-            <DistributionBar
-              label="Female"
-              value={Math.round(category.employees * 0.42)}
-              total={category.employees}
-              color="bg-info"
-            />
-            <DistributionBar
-              label="Male"
-              value={Math.round(category.employees * 0.5)}
-              total={category.employees}
-              color="bg-teal"
-            />
-            <DistributionBar
-              label="Other / unspecified"
-              value={Math.round(category.employees * 0.08)}
-              total={category.employees}
-              color="bg-muted-foreground"
-            />
-          </div>
-        </section>
-
-        {/* Countries & departments */}
-        <section className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <SectionTitle icon={Building2}>Countries affected</SectionTitle>
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {category.countries.map((c) => (
-                <span
-                  key={c}
-                  className="rounded-md border border-border/60 bg-muted/40 px-2 py-0.5 text-[11px]"
-                >
-                  {c}
-                </span>
-              ))}
-            </div>
-          </div>
-          <div>
-            <SectionTitle icon={Building2}>Departments affected</SectionTitle>
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {category.departments.map((d) => (
-                <span
-                  key={d}
-                  className="rounded-md border border-border/60 bg-muted/40 px-2 py-0.5 text-[11px]"
-                >
-                  {d}
-                </span>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* AI observations */}
-        <section>
-          <SectionTitle icon={Bot}>AI observations</SectionTitle>
-          <div className="mt-3 rounded-xl border border-teal/30 bg-teal/5 p-4">
-            <div className="flex items-start gap-2">
-              <Bot className="mt-0.5 h-4 w-4 shrink-0 text-teal" />
-              <p className="text-sm text-muted-foreground">
-                {category.aiObservation}
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* Suggested objective factors */}
-        <section>
-          <SectionTitle icon={AlertCircle}>
-            Suggested objective factors
-          </SectionTitle>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Possible non-discriminatory explanations. These are suggestions
-            only and do not automatically justify gaps.
-          </p>
-          <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            {OBJECTIVE_FACTORS.map((f) => (
-              <div
-                key={f.key}
-                className="rounded-lg border border-border/60 bg-background p-3"
-              >
-                <div className="text-sm font-medium">{f.label}</div>
-                <div className="mt-0.5 text-xs text-muted-foreground">
-                  {f.description}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Add note */}
-        <AnimatePresence>
-          {activeNoteId === category.id && (
-            <motion.section
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="overflow-hidden"
-            >
-              <SectionTitle icon={StickyNote}>Add note</SectionTitle>
-              <Textarea
-                value={note}
-                onChange={(e) => onNoteChange(e.target.value)}
-                placeholder="Document your assessment, decisions, or follow-up actions…"
-                className="mt-3 min-h-[80px]"
-              />
-              <div className="mt-2 flex gap-2">
-                <Button size="sm" variant="hero" onClick={onSaveNote}>
-                  Save note
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => onActiveNoteChange(null)}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </motion.section>
-          )}
-        </AnimatePresence>
-      </div>
-    </>
-  );
-}
-
-function ThresholdBadge({
-  status,
-  large,
-}: {
-  status: ThresholdStatus;
-  large?: boolean;
-}) {
-  const map = {
-    healthy: {
-      label: "Healthy",
-      className: "bg-success/10 text-success",
-      icon: CheckCircle2,
-    },
+function ThresholdBadge({ status }: { status: ThresholdStatus }) {
+  const map: Record<ThresholdStatus, { label: string; className: string }> = {
+    healthy: { label: "Healthy", className: "bg-success/10 text-success" },
     requires_explanation: {
       label: "Requires explanation",
       className: "bg-warning/10 text-warning",
-      icon: AlertCircle,
     },
     joint_assessment: {
-      label: "Joint assessment risk",
+      label: "Joint assessment",
       className: "bg-destructive/10 text-destructive",
-      icon: AlertTriangle,
     },
     cannot_calculate: {
       label: "Cannot calculate",
       className: "bg-muted text-muted-foreground",
-      icon: AlertCircle,
     },
-  } as const;
+  };
   const m = map[status];
-
-console.log("Threshold status received:", status);
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 rounded-full font-medium",
-        m.className,
-        large ? "px-3 py-1 text-xs" : "px-2 py-0.5 text-[11px]",
-      )}
-    >
-      <m.icon className={large ? "h-3.5 w-3.5" : "h-3 w-3"} />
+    <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", m.className)}>
       {m.label}
     </span>
   );
 }
 
 function ExplanationBadge({ status }: { status: ExplanationStatus }) {
-  const map = {
-    none: {
-      label: "None",
-      className: "bg-muted text-muted-foreground",
-    },
-    drafted: {
-      label: "Drafted",
-      className: "bg-info/10 text-info",
-    },
-    reviewed: {
-      label: "Reviewed",
-      className: "bg-success/10 text-success",
-    },
-    flagged: {
-      label: "Flagged",
-      className: "bg-destructive/10 text-destructive",
-    },
-  } as const;
+  const map: Record<ExplanationStatus, { label: string; className: string }> = {
+    none: { label: "None", className: "bg-muted text-muted-foreground" },
+    drafted: { label: "Drafted", className: "bg-info/10 text-info" },
+    reviewed: { label: "Reviewed", className: "bg-success/10 text-success" },
+    flagged: { label: "Flagged", className: "bg-warning/10 text-warning" },
+  };
   const m = map[status];
-
-console.log("Explanation status received:", status);
   return (
-    <span
-      className={cn(
-        "rounded-full px-2 py-0.5 text-[11px] font-medium",
-        m.className,
-      )}
-    >
+    <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", m.className)}>
       {m.label}
     </span>
   );
-}
-
-function DistributionBar({
-  label,
-  value,
-  total,
-  color,
-}: {
-  label: string;
-  value: number;
-  total: number;
-  color: string;
-}) {
-  const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-  return (
-    <div className="flex items-center gap-3">
-      <div className="w-28 text-xs text-muted-foreground">{label}</div>
-      <div className="h-6 flex-1 overflow-hidden rounded-md bg-muted">
-        <motion.div
-          initial={{ width: 0 }}
-          animate={{ width: `${pct}%` }}
-          transition={{ duration: 0.5 }}
-          className={cn("h-full rounded-md", color)}
-        />
-      </div>
-      <div className="w-16 text-right text-xs tabular-nums text-muted-foreground">
-        {value} ({pct}%)
-      </div>
-    </div>
-  );
-}
-
-function SectionTitle({
-  icon: Icon,
-  children,
-}: {
-  icon: typeof FileText;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-      <Icon className="h-3.5 w-3.5 text-teal" /> {children}
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-border/60 bg-background p-3">
-      <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-        {label}
-      </div>
-      <div className="mt-1 text-sm font-medium tabular-nums">{value}</div>
-    </div>
-  );
-}
-
-function thresholdLabel(s: ThresholdStatus) {
-  return s === "healthy"
-    ? "Healthy"
-    : s === "requires_explanation"
-      ? "Requires explanation"
-      : "Joint assessment risk";
-}
-
-function explanationLabel(s: ExplanationStatus) {
-  return s === "none"
-    ? "None"
-    : s === "drafted"
-      ? "Drafted"
-      : s === "reviewed"
-        ? "Reviewed"
-        : "Flagged";
 }
 
 function NoDataState() {
@@ -1660,19 +1101,18 @@ function NoDataState() {
           <LineChart className="h-6 w-6" />
         </div>
         <h2 className="mt-5 font-display text-2xl font-semibold tracking-tight">
-          No data to analyse
+          No gap analysis available
         </h2>
         <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">
-          Complete the workflow through upload, validation, review, and AI
-          job grouping. Gap analysis will then calculate pay disparities
-          across your job categories.
+          Upload payroll data and complete AI job grouping first. Pay gap
+          analysis will then be calculated for each comparable work category.
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
           <Button variant="hero" asChild>
             <Link to="/app/data-sources">Go to data sources</Link>
           </Button>
           <Button variant="outline" asChild>
-            <Link to="/app/grouping">Go to AI grouping</Link>
+            <Link to="/app">Back to dashboard</Link>
           </Button>
         </div>
       </div>
