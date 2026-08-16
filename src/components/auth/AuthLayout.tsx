@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { ArrowLeft } from "lucide-react";
 import { AuthShowcase } from "./AuthShowcase";
+import { supabase } from "@/lib/supabase";
 
 export function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -30,14 +31,29 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
 }
 
 export function SocialButtons() {
+  async function handleGoogleSignIn() {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/app`,
+      },
+    });
+
+    if (error) {
+      console.error("Google sign-in error:", error);
+    }
+  }
+
   return (
     <div className="grid gap-2">
       <button
         type="button"
+        onClick={handleGoogleSignIn}
         className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-border bg-background text-sm font-medium transition-all hover:bg-muted hover:shadow-sm"
       >
         <GoogleIcon /> Continue with Google
       </button>
+
       <button
         type="button"
         className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-border bg-background text-sm font-medium transition-all hover:bg-muted hover:shadow-sm"
