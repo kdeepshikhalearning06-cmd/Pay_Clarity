@@ -48,7 +48,7 @@ export function SocialButtons() {
     <div className="grid gap-2">
       <button
         type="button"
-        onClick={() => console.log("GOOGLE BUTTON CLICKED")}
+        onClick={handleGoogleSignIn}
         className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-border bg-background text-sm font-medium transition-all hover:bg-muted hover:shadow-sm"
       >
         <GoogleIcon /> Continue with Google
