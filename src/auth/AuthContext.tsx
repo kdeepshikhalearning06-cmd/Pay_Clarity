@@ -24,15 +24,43 @@ async function fetchProfile(userId: string, fallbackEmail: string): Promise<User
     .eq("id", userId)
     .maybeSingle();
 
-  if (error || !data) {
+  if (error) {
     console.error("Failed to fetch profile:", error);
     return null;
-  } 
-  
+  }
+
   if (!data) {
-  console.warn("Profile not found");
-  return null;
-}
+    // Profile doesn't exist yet — create one for this new user
+    const { data: created, error: createError } = await supabase
+      .from("profiles")
+      .insert({
+        id: userId,
+        email: fallbackEmail,
+        name: fallbackEmail.split("@")[0],
+        avatar: initialsFromEmail(fallbackEmail),
+      })
+      .select()
+      .maybeSingle();
+
+    if (createError || !created) {
+      console.error("Failed to create profile:", createError);
+      return null;
+    }
+
+    return {
+      id: created.id,
+      name: created.name ?? fallbackEmail,
+      email: created.email ?? fallbackEmail,
+      jobTitle: created.job_title ?? "",
+      department: created.department ?? "",
+      role: (created.role ?? "HR Analyst") as UserRole,
+      language: created.language ?? "English (UK)",
+      timezone: created.timezone ?? "Europe/Berlin (CET)",
+      avatar: created.avatar ?? initialsFromEmail(created.email ?? fallbackEmail),
+      workspace_id: created.workspace_id ?? undefined,
+    };
+  }
+
   return {
     id: data.id,
     name: data.name ?? fallbackEmail,
@@ -41,7 +69,7 @@ async function fetchProfile(userId: string, fallbackEmail: string): Promise<User
     department: data.department ?? "",
     role: (data.role ?? "HR Analyst") as UserRole,
     language: data.language ?? "English (UK)",
-    timezone: "Europe/Berlin (CET)",
+    timezone: data.timezone ?? "Europe/Berlin (CET)",
     avatar: data.avatar ?? initialsFromEmail(data.email ?? fallbackEmail),
     workspace_id: data.workspace_id ?? undefined,
   };
@@ -71,11 +99,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
       setLoading(true);
-      await loadProfile(newSession);
-      setLoading(false);
+      (async () => {
+        await loadProfile(newSession);
+        setLoading(false);
+      })();
     });
 
     return () => {

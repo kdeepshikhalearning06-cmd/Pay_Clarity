@@ -24,6 +24,9 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { ALL_ROLES, type UserRole } from "@/lib/user-context";
+import { useAuth } from "@/auth/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -51,7 +54,9 @@ const LANGUAGES = ["English (UK)", "English (US)", "Deutsch", "Nederlands", "Dan
 
 function OnboardingPage() {
   const navigate = useNavigate();
+  const { currentUser, session, refreshProfile } = useAuth();
   const [step, setStep] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
 
   // Step 0: Personal details
   const [fullName, setFullName] = useState("");
@@ -85,12 +90,94 @@ function OnboardingPage() {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (step < 3) {
       setStep(step + 1);
-    } else {
-      navigate({ to: "/app" });
+      return;
     }
+
+    // Final step — persist to Supabase
+    setSubmitting(true);
+
+    try {
+      const userId = session?.user?.id;
+      const userEmail = session?.user?.email ?? "";
+
+      if (!userId) {
+        toast.error("You must be signed in to complete onboarding");
+        setSubmitting(false);
+        return;
+      }
+
+      // 1. Create the workspace
+      const { data: workspace, error: wsError } = await supabase
+        .from("workspaces")
+        .insert({
+          name: companyName,
+          industry,
+          company_size: companySize,
+          country: selectedCountries[0],
+          countries: selectedCountries,
+          currency,
+          fiscal_year: fiscalYear,
+          assessment_name: `${fiscalYear} Pay Transparency Assessment`,
+          assessment_status: "In Progress",
+        })
+        .select()
+        .single();
+
+      if (wsError || !workspace) {
+        toast.error("Failed to create workspace: " + (wsError?.message ?? "Unknown error"));
+        setSubmitting(false);
+        return;
+      }
+
+      // 2. Create/update the user's profile
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .upsert({
+          id: userId,
+          email: userEmail,
+          name: fullName,
+          job_title: jobTitle,
+          department,
+          role,
+          language,
+          workspace_id: workspace.id,
+        });
+
+      if (profileError) {
+        toast.error("Failed to save profile: " + profileError.message);
+        setSubmitting(false);
+        return;
+      }
+
+      // 3. Add the user as a workspace member (Admin)
+      const { error: memberError } = await supabase
+        .from("workspace_members")
+        .insert({
+          workspace_id: workspace.id,
+          user_id: userId,
+          name: fullName,
+          email: userEmail,
+          role: "Admin",
+          status: "Active",
+        });
+
+      if (memberError) {
+        console.error("Failed to create membership:", memberError);
+      }
+
+      // 4. Refresh the profile so the app picks up the new workspace_id
+      await refreshProfile();
+
+      toast.success("Workspace created!");
+      navigate({ to: "/app" });
+    } catch (err) {
+      toast.error("Something went wrong: " + (err instanceof Error ? err.message : "Unknown error"));
+    }
+
+    setSubmitting(false);
   };
 
   const handleBack = () => {
@@ -398,10 +485,10 @@ function OnboardingPage() {
           <Button
             variant="hero"
             onClick={handleNext}
-            disabled={!canProceed()}
+            disabled={!canProceed() || submitting}
           >
-            {step === 3 ? "Start using PayClarity" : "Continue"}
-            <ArrowRight className="ml-1 h-4 w-4" />
+            {submitting ? "Setting up…" : step === 3 ? "Start using PayClarity" : "Continue"}
+            {!submitting && <ArrowRight className="ml-1 h-4 w-4" />}
           </Button>
         </div>
       </main>

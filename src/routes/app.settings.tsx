@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { Building2, ShieldCheck, Users, Lock, Bell, Mail, UserPlus, Trash2, KeyRound, MonitorSmartphone, History, TriangleAlert as AlertTriangle, Check } from "lucide-react";
@@ -22,10 +22,10 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { COMPANY } from "@/lib/company-context";
 import { SUPPORTED_COUNTRIES } from "@/lib/country-profiles";
 import { toast } from "sonner";
 import { useSecurityConfirmation, AccessRestricted, useCanAccess } from "@/components/app/SecurityConfirmation";
+import { useWorkspace, type WorkspaceMember } from "@/lib/workspace-context";
 
 export const Route = createFileRoute("/app/settings")({
   head: () => ({
@@ -50,22 +50,7 @@ const TABS: { id: TabId; label: string; icon: typeof Building2 }[] = [
   { id: "security", label: "Security", icon: Lock },
 ];
 
-type TeamMember = {
-  id: string;
-  name: string;
-  email: string;
-  role: "Admin" | "HR Manager" | "Reviewer" | "Viewer";
-  status: "Active" | "Invited" | "Inactive";
-};
-
-const TEAM_MEMBERS: TeamMember[] = [
-  { id: "t1", name: "Anna Novak", email: "anna.novak@acme.de", role: "Admin", status: "Active" },
-  { id: "t2", name: "Marco Bianchi", email: "marco.bianchi@acme.de", role: "HR Manager", status: "Active" },
-  { id: "t3", name: "Sophie Laurent", email: "sophie.laurent@acme.de", role: "Reviewer", status: "Active" },
-  { id: "t4", name: "Lars Andersen", email: "lars.andersen@acme.de", role: "Reviewer", status: "Invited" },
-];
-
-const ROLE_PERMISSIONS: Record<TeamMember["role"], string[]> = {
+const ROLE_PERMISSIONS: Record<string, string[]> = {
   Admin: ["Full access", "Manage team", "Configure workspace", "Generate reports"],
   "HR Manager": ["Manage data", "Review explanations", "Generate reports", "View audit trail"],
   Reviewer: ["Review explanations", "Approve or reject", "Add notes"],
@@ -80,47 +65,81 @@ const LOGIN_HISTORY = [
 
 function SettingsPage() {
   const [tab, setTab] = useState<TabId>("company");
-  const [companyName, setCompanyName] = useState(COMPANY.name);
-  const [industry, setIndustry] = useState(COMPANY.industry);
-  const [companySize, setCompanySize] = useState(COMPANY.companySize);
-  const [country, setCountry] = useState(COMPANY.country);
-  const [currency, setCurrency] = useState(COMPANY.currency);
-  const [fiscalYear, setFiscalYear] = useState(COMPANY.fiscalYear);
+  const {
+    workspace,
+    members,
+    updateWorkspace,
+    addMember,
+    updateMember,
+    removeMember,
+  } = useWorkspace();
+
+  const [companyName, setCompanyName] = useState("");
+  const [industry, setIndustry] = useState("Technology");
+  const [companySize, setCompanySize] = useState("100-250");
+  const [country, setCountry] = useState("Germany");
+  const [currency, setCurrency] = useState("EUR");
+  const [fiscalYear, setFiscalYear] = useState("FY2026");
   const [reportingYear, setReportingYear] = useState("FY2026");
   const [notifEmail, setNotifEmail] = useState(true);
   const [notifDeadlines, setNotifDeadlines] = useState(true);
   const [notifAlerts, setNotifAlerts] = useState(true);
   const [notifWeekly, setNotifWeekly] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<TeamMember["role"]>("Reviewer");
-  const [members, setMembers] = useState<TeamMember[]>(TEAM_MEMBERS);
+  const [inviteRole, setInviteRole] = useState("Reviewer");
+  const [savingCompany, setSavingCompany] = useState(false);
+  const [inviting, setInviting] = useState(false);
+
+  useEffect(() => {
+    if (workspace) {
+      setCompanyName(workspace.name);
+      setIndustry(workspace.industry);
+      setCompanySize(workspace.companySize);
+      setCountry(workspace.country);
+      setCurrency(workspace.currency);
+      setFiscalYear(workspace.fiscalYear);
+    }
+  }, [workspace]);
 
   const { requestConfirmation, dialog: securityDialog } = useSecurityConfirmation();
   const access = useCanAccess();
 
-  const handleSaveCompany = () => {
-    toast.success("Company settings saved");
+  const handleSaveCompany = async () => {
+    setSavingCompany(true);
+    const ok = await updateWorkspace({
+      name: companyName,
+      industry,
+      companySize,
+      country,
+      currency,
+      fiscalYear,
+    });
+    setSavingCompany(false);
+    if (ok) {
+      toast.success("Company settings saved");
+    } else {
+      toast.error("Failed to save company settings");
+    }
   };
 
   const handleSaveCompliance = () => {
     toast.success("Compliance settings saved");
   };
 
-  const handleInvite = () => {
+  const handleInvite = async () => {
     if (!inviteEmail.trim()) {
       toast("Enter an email address");
       return;
     }
-    const newMember: TeamMember = {
-      id: `t${Date.now()}`,
-      name: inviteEmail.split("@")[0],
-      email: inviteEmail,
-      role: inviteRole,
-      status: "Invited",
-    };
-    setMembers((prev) => [...prev, newMember]);
-    setInviteEmail("");
-    toast.success(`Invitation sent to ${newMember.email}`);
+    setInviting(true);
+    const ok = await addMember(inviteEmail, inviteRole);
+    setInviting(false);
+    if (ok) {
+      setInviteEmail("");
+      toast.success(`Invitation sent to ${inviteEmail}`);
+    } else {
+      toast.error("Failed to send invitation");
+    }
   };
 
   const handleRemoveMember = (id: string) => {
@@ -129,8 +148,14 @@ function SettingsPage() {
       requestConfirmation("remove_admin_user");
       return;
     }
-    setMembers((prev) => prev.filter((m) => m.id !== id));
-    toast("Team member removed");
+    removeMember(id).then((ok) => {
+      if (ok) toast("Team member removed");
+      else toast.error("Failed to remove member");
+    });
+  };
+
+  const handleRoleChange = (id: string, newRole: string) => {
+    updateMember(id, { role: newRole });
   };
 
   return (
@@ -262,7 +287,7 @@ function SettingsPage() {
                   </Select>
                 </div>
               </div>
-              {country !== COMPANY.country && (
+              {workspace && country !== workspace.country && (
                 <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 p-3">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
                   <p className="text-xs text-muted-foreground">
@@ -274,8 +299,8 @@ function SettingsPage() {
                 </div>
               )}
               <div className="flex justify-end">
-                <Button variant="hero" onClick={handleSaveCompany}>
-                  <Check className="mr-1 h-4 w-4" /> Save changes
+                <Button variant="hero" onClick={handleSaveCompany} disabled={savingCompany}>
+                  <Check className="mr-1 h-4 w-4" /> {savingCompany ? "Saving…" : "Save changes"}
                 </Button>
               </div>
             </CardContent>
@@ -362,7 +387,7 @@ function SettingsPage() {
                     <Input
                       id="invite-email"
                       type="email"
-                      placeholder="colleague@acme.de"
+                      placeholder="colleague@company.com"
                       value={inviteEmail}
                       onChange={(e) => setInviteEmail(e.target.value)}
                     />
@@ -371,7 +396,7 @@ function SettingsPage() {
                     <Label>Role</Label>
                     <Select
                       value={inviteRole}
-                      onValueChange={(v) => setInviteRole(v as TeamMember["role"])}
+                      onValueChange={setInviteRole}
                     >
                       <SelectTrigger className="w-[160px]">
                         <SelectValue />
@@ -384,8 +409,8 @@ function SettingsPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button variant="hero" onClick={handleInvite}>
-                    <UserPlus className="mr-1 h-4 w-4" /> Invite
+                  <Button variant="hero" onClick={handleInvite} disabled={inviting}>
+                    <UserPlus className="mr-1 h-4 w-4" /> {inviting ? "Inviting…" : "Invite"}
                   </Button>
                 </div>
               </CardContent>
@@ -424,15 +449,7 @@ function SettingsPage() {
                           <td className="px-3 py-3">
                             <Select
                               value={m.role}
-                              onValueChange={(v) =>
-                                setMembers((prev) =>
-                                  prev.map((mem) =>
-                                    mem.id === m.id
-                                      ? { ...mem, role: v as TeamMember["role"] }
-                                      : mem,
-                                  ),
-                                )
-                              }
+                              onValueChange={(v) => handleRoleChange(m.id, v)}
                             >
                               <SelectTrigger className="h-8 w-[130px]">
                                 <SelectValue />
@@ -485,7 +502,7 @@ function SettingsPage() {
               </CardHeader>
               <CardContent>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {(Object.entries(ROLE_PERMISSIONS) as [TeamMember["role"], string[]][]).map(
+                  {(Object.entries(ROLE_PERMISSIONS) as [string, string[]][]).map(
                     ([role, perms]) => (
                       <div
                         key={role}

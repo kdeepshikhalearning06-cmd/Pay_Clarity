@@ -4,8 +4,8 @@ import { Building2, ShieldCheck, TriangleAlert as AlertTriangle, CalendarClock, 
 import { PageHeader } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { AssessmentContextBanner } from "@/components/app/AssessmentContextBanner";
-import { COMPANY } from "@/lib/company-context";
 import { getCountryProfile } from "@/lib/country-profiles";
+import { useWorkspace } from "@/lib/workspace-context";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/app/company-profile")({
@@ -36,7 +36,17 @@ const UPCOMING_DEADLINES = [
 ];
 
 function CompanyProfilePage() {
-  const profile = getCountryProfile(COMPANY.country);
+  const { workspace, loading } = useWorkspace();
+
+  if (loading || !workspace) {
+    return (
+      <div className="mx-auto max-w-5xl">
+        <PageHeader title="Company profile" description="Loading…" />
+      </div>
+    );
+  }
+
+  const profile = getCountryProfile(workspace.country);
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -64,15 +74,15 @@ function CompanyProfilePage() {
           <Building2 className="h-3.5 w-3.5 text-teal" /> Company information
         </div>
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <InfoField label="Company name" value={COMPANY.name} />
-          <InfoField label="Industry" value={COMPANY.industry} />
-          <InfoField label="Country" value={COMPANY.country} />
-          <InfoField label="Company size" value={`${COMPANY.companySize} employees`} />
-          <InfoField label="Employees analysed" value={String(COMPANY.employees)} />
-          <InfoField label="Reports generated" value={String(COMPANY.reportsGenerated)} />
-          <InfoField label="Currency" value={COMPANY.currency} />
-          <InfoField label="Fiscal year" value={COMPANY.fiscalYear} />
-          <InfoField label="Assessment date" value={COMPANY.assessmentDate} />
+          <InfoField label="Company name" value={workspace.name} />
+          <InfoField label="Industry" value={workspace.industry} />
+          <InfoField label="Country" value={workspace.country} />
+          <InfoField label="Company size" value={`${workspace.companySize} employees`} />
+          <InfoField label="Employees analysed" value={String(workspace.employees)} />
+          <InfoField label="Reports generated" value={String(workspace.reportsGenerated)} />
+          <InfoField label="Currency" value={workspace.currency} />
+          <InfoField label="Fiscal year" value={workspace.fiscalYear} />
+          <InfoField label="Assessment date" value={workspace.assessmentDate || "—"} />
         </div>
       </motion.section>
 
@@ -97,14 +107,14 @@ function CompanyProfilePage() {
             <div
               className={cn(
                 "mt-1.5 font-display text-3xl font-bold tabular-nums",
-                COMPANY.readiness >= 90
+                workspace.readiness >= 90
                   ? "text-success"
-                  : COMPANY.readiness >= 70
+                  : workspace.readiness >= 70
                     ? "text-warning"
                     : "text-destructive",
               )}
             >
-              {COMPANY.readiness}%
+              {workspace.readiness}%
             </div>
           </div>
           <div className="rounded-xl border border-border/60 bg-background p-4">
@@ -115,7 +125,7 @@ function CompanyProfilePage() {
               </div>
             </div>
             <div className="mt-1.5 font-display text-3xl font-bold tabular-nums text-warning">
-              {COMPANY.overallGap}%
+              {workspace.overallGap}%
             </div>
           </div>
           <div className="rounded-xl border border-border/60 bg-background p-4">

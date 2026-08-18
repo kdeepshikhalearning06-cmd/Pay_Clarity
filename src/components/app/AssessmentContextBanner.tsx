@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import { Building2, ShieldCheck, Globe } from "lucide-react";
-import { COMPANY } from "@/lib/company-context";
+import { useWorkspace } from "@/lib/workspace-context";
 import { cn } from "@/lib/utils";
 
 export function AssessmentContextBanner({
@@ -8,6 +8,10 @@ export function AssessmentContextBanner({
 }: {
   className?: string;
 }) {
+  const { workspace } = useWorkspace();
+
+  if (!workspace) return null;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -25,7 +29,7 @@ export function AssessmentContextBanner({
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
             Company
           </div>
-          <div className="text-sm font-medium">{COMPANY.name}</div>
+          <div className="text-sm font-medium">{workspace.name}</div>
         </div>
       </div>
       <div className="h-8 w-px bg-border/60" />
@@ -33,7 +37,7 @@ export function AssessmentContextBanner({
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
           Assessment
         </div>
-        <div className="text-sm font-medium">{COMPANY.assessmentName}</div>
+        <div className="text-sm font-medium">{workspace.assessmentName}</div>
       </div>
       <div className="h-8 w-px bg-border/60" />
       <div>
@@ -42,7 +46,7 @@ export function AssessmentContextBanner({
         </div>
         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <Globe className="h-3.5 w-3.5 text-teal" />
-          {COMPANY.countries.map((c) => c.name).join(" · ")}
+          {workspace.countries.map((c) => c.name).join(" · ")}
         </div>
       </div>
       <div className="h-8 w-px bg-border/60" />
@@ -52,7 +56,7 @@ export function AssessmentContextBanner({
         </div>
         <div className="flex items-center gap-1.5 text-sm">
           <span className="h-2 w-2 rounded-full bg-warning" />
-          {COMPANY.assessmentStatus}
+          {workspace.assessmentStatus}
         </div>
       </div>
       <div className="ml-auto flex items-center gap-2">
@@ -62,7 +66,7 @@ export function AssessmentContextBanner({
             Readiness
           </div>
           <div className="font-display text-lg font-bold tabular-nums text-teal">
-            {COMPANY.readiness}%
+            {workspace.readiness}%
           </div>
         </div>
       </div>

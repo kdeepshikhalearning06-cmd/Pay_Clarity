@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import {
@@ -30,7 +30,11 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { CURRENT_USER, ROLE_DESCRIPTIONS, ALL_ROLES, type UserRole } from "@/lib/user-context";
+import { ROLE_DESCRIPTIONS, ALL_ROLES, type UserRole } from "@/lib/user-context";
+import { useAuth } from "@/auth/AuthContext";
+import { useDemoMode } from "@/lib/demo-store";
+import { DEMO_USER } from "@/lib/user-context";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/profile")({
@@ -44,13 +48,71 @@ export const Route = createFileRoute("/app/profile")({
 });
 
 function ProfilePage() {
-  const [name, setName] = useState(CURRENT_USER.name);
-  const [email, setEmail] = useState(CURRENT_USER.email);
-  const [jobTitle, setJobTitle] = useState(CURRENT_USER.jobTitle);
-  const [department, setDepartment] = useState(CURRENT_USER.department);
-  const [role, setRole] = useState<UserRole>(CURRENT_USER.role);
-  const [language, setLanguage] = useState(CURRENT_USER.language);
-  const [timezone, setTimezone] = useState(CURRENT_USER.timezone);
+  const { currentUser, refreshProfile } = useAuth();
+  const [demo] = useDemoMode();
+
+  const profileUser = demo ? DEMO_USER : currentUser;
+
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
+  const [department, setDepartment] = useState("");
+  const [role, setRole] = useState<UserRole>("HR Analyst");
+  const [language, setLanguage] = useState("English (UK)");
+  const [timezone, setTimezone] = useState("Europe/Berlin (CET)");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (profileUser) {
+      setName(profileUser.name);
+      setEmail(profileUser.email);
+      setJobTitle(profileUser.jobTitle);
+      setDepartment(profileUser.department);
+      setRole(profileUser.role);
+      setLanguage(profileUser.language);
+      setTimezone(profileUser.timezone);
+    }
+  }, [profileUser]);
+
+  const handleSave = async () => {
+    if (demo) {
+      toast.success("Profile updated");
+      return;
+    }
+
+    if (!currentUser) return;
+
+    setSaving(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        name,
+        job_title: jobTitle,
+        department,
+        role,
+        language,
+        timezone,
+      })
+      .eq("id", currentUser.id);
+
+    setSaving(false);
+
+    if (error) {
+      toast.error("Failed to save profile: " + error.message);
+      return;
+    }
+
+    await refreshProfile();
+    toast.success("Profile updated");
+  };
+
+  if (!profileUser) {
+    return (
+      <div className="mx-auto max-w-3xl">
+        <PageHeader title="My profile" description="Loading…" />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -73,19 +135,19 @@ function ProfilePage() {
         className="mb-6 flex items-center gap-4 rounded-2xl border border-border/60 bg-card p-5 shadow-[var(--shadow-card)]"
       >
         <div className="grid h-16 w-16 place-items-center rounded-2xl bg-[image:var(--gradient-teal)] text-xl font-semibold text-teal-foreground">
-          {CURRENT_USER.avatar}
+          {profileUser.avatar}
         </div>
         <div>
-          <h2 className="font-display text-lg font-semibold">{CURRENT_USER.name}</h2>
+          <h2 className="font-display text-lg font-semibold">{profileUser.name}</h2>
           <div className="mt-0.5 flex items-center gap-2 text-sm text-muted-foreground">
             <Briefcase className="h-3.5 w-3.5" />
-            {CURRENT_USER.jobTitle}
+            {profileUser.jobTitle || "—"}
           </div>
           <div className="mt-1 flex items-center gap-2">
             <span className="rounded-full bg-teal/10 px-2.5 py-0.5 text-[11px] font-medium text-teal">
-              {CURRENT_USER.role}
+              {profileUser.role}
             </span>
-            <span className="text-xs text-muted-foreground">{CURRENT_USER.department}</span>
+            <span className="text-xs text-muted-foreground">{profileUser.department || "—"}</span>
           </div>
         </div>
       </motion.div>
@@ -110,7 +172,7 @@ function ProfilePage() {
                 <Mail className="mr-1 inline h-3.5 w-3.5 text-muted-foreground" />
                 Email address
               </Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Input id="email" type="email" value={email} disabled onChange={(e) => setEmail(e.target.value)} />
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -208,8 +270,8 @@ function ProfilePage() {
       </Card>
 
       <div className="flex justify-end">
-        <Button variant="hero" onClick={() => toast.success("Profile updated")}>
-          <Check className="mr-1 h-4 w-4" /> Save profile
+        <Button variant="hero" onClick={handleSave} disabled={saving}>
+          <Check className="mr-1 h-4 w-4" /> {saving ? "Saving…" : "Save profile"}
         </Button>
       </div>
     </div>

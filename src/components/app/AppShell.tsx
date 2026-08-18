@@ -4,7 +4,8 @@ import { LayoutDashboard, FileText, Users, Bot, History, Settings, Sparkles, Bel
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useDemoMode, disableDemo } from "@/lib/demo-store";
-import { CURRENT_USER, DEMO_USER } from "@/lib/user-context";
+import { DEMO_USER } from "@/lib/user-context";
+import { useAuth } from "@/auth/AuthContext";
 import { useNotifications } from "@/lib/notifications-store";
 import { useTourCompleted, startTour } from "@/lib/tour-store";
 import { toast } from "sonner";
@@ -53,8 +54,9 @@ export function AppShell() {
   const [demo] = useDemoMode();
   const { unreadCount } = useNotifications();
   const [tourCompleted] = useTourCompleted();
+  const { currentUser } = useAuth();
 
-  const user = demo ? DEMO_USER : CURRENT_USER;
+  const user = demo ? DEMO_USER : (currentUser ?? DEMO_USER);
 
   // Auto-start tour on first visit (not in demo mode)
   useEffect(() => {
